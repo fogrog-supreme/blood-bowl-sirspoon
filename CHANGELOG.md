@@ -2,6 +2,9 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.20 (31 Oct 2026)
+- Behind the scenes: the computer coach can now be asked for its decisions by other programs (it plays inside BotBowl). Nothing changes in play.
+
 ## v4.19 (31 Oct 2026)
 - Behind the scenes: a second computer coach (the BotBowl scripted bot) for testing the AI against. Nothing changes in play.
 

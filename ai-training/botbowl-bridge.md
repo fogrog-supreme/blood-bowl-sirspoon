@@ -10,7 +10,7 @@ stubbed out. A full computer-vs-computer match plays to the end with no page err
 doesn't matter for the bridge, which asks for one decision at a time). `openGame()` gives a ready page to drive.
 Needs `npm i jsdom`. jsdom's window lacks a few Node built-ins (MessageChannel, BroadcastChannel...): the tool passes them in.
 
-## Step 2: a decision service in the page
+## Step 2: a decision service in the page (done, v4.20)
 A small API in index.html (next to `AI.debugX`), for example `window.BRIDGE`:
 - `load(desc)`: set BludBowl's `state` from a description of a BotBowl position: both rosters (Humans), each player's square,
   standing/prone/stunned/used, MA left, skills; the ball; half, turn, re-rolls, Blitz/Hand-off/Pass used this turn.
@@ -18,7 +18,7 @@ A small API in index.html (next to `AI.debugX`), for example `window.BRIDGE`:
 - `decide(kind)`: run the AI for one decision and return it: the turn plan (`choose()`: player, action, target, the route as
   squares), and the smaller ones (re-roll yes/no, block die, push square, follow up, set-up squares, kick target).
 
-## Step 3: the Python bot
+## Step 3: the Python bot (done)
 A `ProcBot` subclass in BotBowl (like `examples/scripted_bot_example.py`) that runs `node` once (JSON lines over stdin/stdout)
 and, for each decision: describes the game (step 2's format), asks, and turns the answer into BotBowl actions
 (`START_MOVE`/`START_BLOCK`/`START_BLITZ` + `SELECT_PLAYER`/`START_HANDOFF`, then one `MOVE` per square of the route, `BLOCK`,
@@ -31,3 +31,23 @@ Play it against BotBowl's scripted bot in BotBowl (100+ matches, sides swapped) 
 (v4.19: won 48, drew 31, lost 21, TDs 86-48). Log every fallback from step 3: those are the rules differences.
 
 Rough size: steps 2-4, two to three days.
+
+## Where it stands (31 Oct 2026)
+Steps 1-3 work. `AI.bridge` in index.html (load, turn, reroll, dice, push, follow, setup, kick, touchback), served by
+`tools/bridge-server.js` (the game in jsdom, normal clock: test mode's clock spins even when idle), used by
+`tools/botbowl/bludbowl_bot.py` (a `ProcBot`; `botbowl.register_bot('bludbowl', ...)`). `tools/botbowl/play.py` plays it against
+BotBowl's scripted bot inside BotBowl, sides swapping, and lists every answer that had to be adjusted to BotBowl's rules.
+
+To run it (BotBowl Season 3 needs Python 3.8-3.11; on a machine without tkinter, play.py stands in for it):
+
+    git clone https://github.com/dhillier/botbowl-season3 && cd botbowl-season3
+    python3.11 -m venv .venv && . .venv/bin/activate
+    pip install setuptools==68.2.2 wheel==0.41.3 && pip install -r requirements.txt && pip install --no-build-isolation -e .
+    (in the BludBowl folder: npm i jsdom)
+    python /path/to/BludBowl/tools/botbowl/play.py --n 30
+
+First result, 30 matches (~8s each): BludBowl won 14, drew 7, lost 9, touchdowns 25-15 (in BludBowl itself, against the ported
+scripted bot: 48-31-21 of 100). Adjusted: 2 Blitz targets BotBowl wouldn't offer. Fixed on the way: players out for the drive
+(Sweltering Heat, a bad snack) must be marked unavailable, or set-up loops. Simple choices not asked of BludBowl yet: the
+Apothecary (always used), interceptions (the first player offered), skill uses (always), high kick (none).
+Step 4 (a bigger check, 100+ matches) is next.

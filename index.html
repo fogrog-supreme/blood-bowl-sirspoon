@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>BludBowl 4.19</title>
+    <title>BludBowl 4.20</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.19</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.20</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -26899,6 +26899,120 @@
                     else endTurn();
                 });
             }
+            // ---- the bridge: this AI's decisions for a position described from outside (tools/bridge-server.js, which BotBowl's Python bot
+            // talks to: ai-training/botbowl-bridge.md). load() sets the game to that position; each ask runs the AI's own code on it and
+            // returns its answer as plain data. Taps the AI would make are caught (handleGridClick, button clicks), not carried out.
+            const bridge = (() => {
+                let idOf = new Map(), extOf = new Map();   // the outside ids <-> ours
+                const P = ext => getPlayerById(idOf.get(String(ext)));
+                const ext = p => (p ? extOf.get(p.id) : null);
+                const blank = ['hasActed', 'hasBlocked', 'isDown', 'isStunned', 'isKO', 'isCasualty', 'isReserve', 'isEjected', 'isFading', 'isDistracted', 'stunnedThisTurn', 'pendingAct'];
+                // d: { me, active, half, turn: [t0, t1], rr: [r0, r1], rrUsed, used: { blitz, pass, handoff, foul, ttm }, weather,
+                //      kick: { kicking, receiving }, ball: { x, y, carrier }, tried: [ids],
+                //      players: [{ id, team, type, ma, st, ag, pa, av, skills, x, y, state: up|prone|stunned|ko|cas|reserve|out, used, maLeft, rushesLeft }] }
+                function load(d) {
+                    const tpl = [state.players.find(p => p.team === 0), state.players.find(p => p.team === 1)];
+                    idOf = new Map(); extOf = new Map();
+                    state.players = (d.players || []).map((q, i) => {
+                        const base = tpl[q.team] || tpl[0] || {};
+                        const p = Object.assign({}, base, { id: i + 1, team: q.team, type: q.type || 'Player', label: (q.type || 'P').slice(0, 2), name: q.name || null, star: null, posKey: null,
+                            ma: q.ma, st: q.st, ag: q.ag, pa: q.pa == null ? 0 : q.pa, av: q.av, skills: (q.skills || []).slice(), baseSkills: (q.skills || []).slice(), usedSkills: [],
+                            actionTaken: null, walkAnim: null, bumpAnim: null, starUsed: {}, gStats: {} });
+                        blank.forEach(k => { p[k] = false; });
+                        const on = q.x != null && q.y != null && ['up', 'prone', 'stunned'].includes(q.state);
+                        p.x = on ? q.x : -9; p.y = on ? q.y : -9;
+                        p.isDown = q.state === 'prone' || q.state === 'stunned'; p.isStunned = q.state === 'stunned';
+                        p.isKO = q.state === 'ko'; p.isCasualty = q.state === 'cas'; p.isEjected = q.state === 'out'; p.isReserve = !on && !p.isKO && !p.isCasualty && !p.isEjected;
+                        p.hasActed = !!q.used;
+                        p.remainingMA = q.maLeft != null ? q.maLeft : q.ma; p.rushes = q.rushesLeft != null ? q.rushesLeft : (p.skills.includes('Sprint') ? 3 : 2);
+                        idOf.set(String(q.id), p.id); extOf.set(p.id, String(q.id));
+                        return p;
+                    });
+                    state.activeTeam = d.active != null ? d.active : d.me; state.half = d.half || 1;
+                    state.turn = [d.turn ? d.turn[0] : 1, d.turn ? d.turn[1] : 1]; state.rr = [d.rr ? d.rr[0] : 0, d.rr ? d.rr[1] : 0];
+                    state.teamRRUsedThisTurn = !!d.rrUsed;
+                    const u = d.used || {}; state.blitzUsed = !!u.blitz; state.passUsed = !!u.pass; state.handoffUsed = !!u.handoff; state.foulUsed = !!u.foul; state.ttmUsed = !!u.ttm;
+                    const c = d.ball && d.ball.carrier != null ? P(d.ball.carrier) : null;
+                    state.ball = c ? { x: -1, y: -1, carrierId: c.id } : { x: d.ball && d.ball.x != null ? d.ball.x : -1, y: d.ball && d.ball.y != null ? d.ball.y : -1, carrierId: null };
+                    if (d.weather && WEATHER_TABLE[d.weather]) state.weather = Object.assign({}, WEATHER_TABLE[d.weather], { roll: 0 });
+                    if (d.kick) state.kickoff = Object.assign({}, state.kickoff || {}, { kickingTeam: d.kick.kicking, receivingTeam: d.kick.receiving });
+                    Object.assign(state, { mode: MODES.IDLE, selectedId: null, pendingRoll: null, combat: null, choice: null, live: true, isGameOver: false, isResolvingKickoff: false, charge: null, kickEvent: null });
+                    state.aiStalling = false; moveMemo = new Map(); plan = null;
+                    tried = new Set((d.tried || []).map(e => idOf.get(String(e))).filter(Boolean));
+                    turnKey = state.half + '-' + state.activeTeam + '-' + state.turn[state.activeTeam];
+                    return { players: state.players.length };
+                }
+                // run fn with the AI's taps caught: returns { taps: [{x, y}], clicks: [ids] }
+                function caught(fn) {
+                    const taps = [], clicks = [], keepG = window.handleGridClick, keepC = HTMLElement.prototype.click, quiet = ['updateSetupHUD', 'render', 'updateTopBar', 'refreshSelection'], keepQ = quiet.map(k => window[k]);
+                    window.handleGridClick = (x, y) => { taps.push({ x, y }); };
+                    HTMLElement.prototype.click = function () { clicks.push(this.id || ''); };
+                    quiet.forEach(k => { window[k] = () => {}; });   // (no screen to update)
+                    try { fn(); } finally { window.handleGridClick = keepG; HTMLElement.prototype.click = keepC; quiet.forEach((k, i) => { window[k] = keepQ[i]; }); }
+                    return { taps, clicks };
+                }
+                // the turn: who acts, how, and the route, as squares
+                function turn() {
+                    let pl = null;
+                    try { starAIPre(state.activeTeam); } catch (e) {}
+                    pl = choose();
+                    if (!pl) return { kind: 'end' };
+                    const p = getPlayerById(pl.pid); if (!p) return { kind: 'end' };
+                    let route = [];
+                    const t = pl.target != null ? getPlayerById(pl.target) : null, r = pl.receiver != null ? getPlayerById(pl.receiver) : null;
+                    const adj = q => q && Math.max(Math.abs(q.x - p.x), Math.abs(q.y - p.y)) === 1;
+                    const already = (pl.kind === 'blitz' || pl.kind === 'foul') && adj(t) || ((pl.kind === 'handoff' || pl.kind === 'pass') && pl.stay);
+                    if (!already && pl.pick) { try { const m = pl.pick(movesFor(p), p); if (m && m.path) route = m.path.map(s => ({ x: s.x, y: s.y })); } catch (e) { console.error('bridge pick', e); } }
+                    return { kind: pl.kind, player: ext(p), target: ext(t), receiver: ext(r), route, tx: pl.tx, ty: pl.ty, standUp: !!p.isDown };
+                }
+                // a failed roll: use a team re-roll? ctx: { type: DODGE|RUSH|PICKUP|CATCH|PASS|..., player, target }
+                function reroll(ctx) {
+                    const p = P(ctx.player); if (!p) return false;
+                    return !!rrWorth({ type: ctx.type, player: p, target: ctx.target });
+                }
+                // block dice: { atk, def, dice: [1-6, as FACES], chooser: 'atk'|'def', canReroll } -> { reroll, index }
+                function dice(o) {
+                    const atk = P(o.atk), def = P(o.def); if (!atk || !def) return { reroll: false, index: 0 };
+                    const ds = o.dice || [], mine = o.chooser !== 'def';
+                    const scores = ds.map(f => faceScore(f, atk, def)), chosen = mine ? Math.max(...scores) : Math.min(...scores);
+                    const critical = state.ball.carrierId === atk.id || state.ball.carrierId === def.id || (chosen <= -10 && (state.rr[atk.team] || 0) >= 3);
+                    const decisive = (state.ball.carrierId === def.id && tdThreat(def)) || (state.ball.carrierId === atk.id && toGo(atk.x, atk.team) <= (atk.remainingMA || 0) + 2);
+                    const kd = f => f === FACES.POW || (f === FACES.STUMBLE && (!hasSk(def, 'Dodge') || hasSk(atk, 'Tackle'))) || (f === FACES.BOTH_DOWN && hasSk(atk, 'Block') && !hasSk(def, 'Block'));
+                    const noKd = mine ? !ds.some(kd) : !ds.every(kd);
+                    const onCarrier = AIX.on(atk.team, 'rr2') && noKd && chosen >= 0 && state.ball.carrierId === def.id && (state.rr[atk.team] || 0) > 0;
+                    const rr = !!o.canReroll && ((chosen < 0 && rrWorth(null, critical, decisive, chosen <= -7)) || onCarrier);
+                    return { reroll: rr, index: Math.max(0, scores.indexOf(chosen)) };
+                }
+                // a push: { atk, def, pushed, squares: [{x, y}] } -> index of the square
+                function push(o) {
+                    const atk = P(o.atk), def = P(o.def), pushed = P(o.pushed) || def, sqs = o.squares || [];
+                    if (!atk || !pushed || !sqs.length) return 0;
+                    state.combat = { atk, def: def || pushed, currentPushed: pushed, pushSquares: sqs.map(s => ({ x: s.x, y: s.y })), sidestep: false };
+                    const c = caught(() => pushChoice()); state.combat = null;
+                    const t = c.taps[0]; const i = t ? sqs.findIndex(s => s.x === t.x && s.y === t.y) : 0;
+                    return Math.max(0, i);
+                }
+                // follow up? { atk, def, vacated: {x, y} } -> true / false
+                function follow(o) {
+                    const atk = P(o.atk), def = P(o.def); if (!atk || !o.vacated) return false;
+                    state.combat = { atk, def, vacatedSquare: { x: o.vacated.x, y: o.vacated.y } };
+                    const c = caught(() => followUp()); state.combat = null;
+                    return c.taps.some(t => t.x === o.vacated.x && t.y === o.vacated.y);
+                }
+                // set-up for team t: [{ id, x, y }] (players not listed stay in reserve)
+                function setup(t) {
+                    const ps = state.players.filter(p => p.team === t && !p.isKO && !p.isCasualty && !p.isEjected);
+                    ps.forEach(p => { p.isReserve = true; p.x = -9; p.y = -9; });
+                    const play = ps.slice().sort((a, b) => playerCost(b) - playerCost(a)).slice(0, MAX_ON_PITCH);   // (the best eleven)
+                    play.forEach(p => { p.isReserve = false; });
+                    state.mode = MODES.SETUP; state.setup = Object.assign({}, state.setup || {}, { eventSetup: false, restrictIds: null });
+                    caught(() => setupTeam(t)); state.mode = MODES.IDLE;
+                    return play.filter(p => p.x >= 0 && p.x < CFG.cols).map(p => ({ id: ext(p), x: p.x, y: p.y }));
+                }
+                function kick() { const c = caught(() => kickTarget()); return c.taps[0] || null; }
+                function touchbackTo() { const c = caught(() => touchback()); const t = c.taps[0], q = t && getPlayer(t.x, t.y); return q ? ext(q) : null; }
+                return { load, turn, reroll, dice, push, follow, setup, kick, touchback: touchbackTo };
+            })();
             // the End Turn button shows when the computer is playing
             let lastLabel = null;
             function paintTurnButton() {
@@ -26911,6 +27025,7 @@
 
             return {
                 debugAdapt: t => adaptOffence(t, (GEO.sev ? SETUPS7 : SETUPS).offence),
+                bridge,   // (tools/bridge-server.js)
                 isAI, act, ownerTeam, decider, isOn: t => !!on[t], isStarted: () => started, reset, setPaused: v => { paused = !!v; }, isPaused: () => paused, bncPick, debugForm: () => formationTargets(state.activeTeam, false), debugBomb: () => bombPlan(state.activeTeam, avail(state.activeTeam)),
                 set(t, v) { on[t] = !!v; save(); },
                 start() { started = true; },

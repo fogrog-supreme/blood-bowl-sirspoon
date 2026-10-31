@@ -2,6 +2,9 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.20 (31 Oct 2026)
+- **New (testing only):** a decision service for BludBowl's AI (`AI.bridge` in index.html): load a position described from outside, ask for the turn plan (player, action, target and route) or any smaller decision (re-roll, block die, push square, follow-up, set-up, kick, touchback), and get the answer as plain data, worked out by the AI's own code. With `tools/bridge-server.js` (no browser needed) and `tools/botbowl/bludbowl_bot.py`, BludBowl's AI plays as a bot inside BotBowl Season 3. First 30 matches there against BotBowl's scripted bot: won 14, drew 7, lost 9, touchdowns 25-15. Nothing changes in play.
+
 ## v4.19 (31 Oct 2026)
 - **New (testing only):** a second computer coach to measure BludBowl's AI against: the scripted bot from BotBowl Season 3 (github.com/dhillier/botbowl-season3), ported decision for decision onto BludBowl's moves and odds, quirks included: its priority list each activation (stand up marked players, score at 70%+, hand-offs, safe blocks, pick-ups, receivers, Blitz, cage, assists, towards the ball, risky blocks), its re-roll and block-dice rules, first push square, always follow up, always the Apothecary, its Wedge/Zone set-ups and kick to the middle. It only plays when a test run asks for it (`--newp '{"brain":"botbowl"}'`); nothing changes in normal play. First result, 100 Human v Human matches: BludBowl's AI won 48, drew 31, lost 21, touchdowns 86-48 (not luck). The bot blocks far more (50 a match v 27) and causes more casualties, but scores far less.
 
