@@ -2,6 +2,9 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.21 (31 Oct 2026)
+- **Improved (testing only):** the AI's decision service (`AI.bridge`) also answers the Apothecary (the game's own call: how valuable the player is, how much match is left) and which player tries an interception, so BludBowl's AI makes those choices itself when it plays inside BotBowl. The BotBowl match runner (`tools/botbowl/play.py`) now gives the chance each result split is just luck. Nothing changes in play.
+
 ## v4.20 (31 Oct 2026)
 - **New (testing only):** a decision service for BludBowl's AI (`AI.bridge` in index.html): load a position described from outside, ask for the turn plan (player, action, target and route) or any smaller decision (re-roll, block die, push square, follow-up, set-up, kick, touchback), and get the answer as plain data, worked out by the AI's own code. With `tools/bridge-server.js` (no browser needed) and `tools/botbowl/bludbowl_bot.py`, BludBowl's AI plays as a bot inside BotBowl Season 3. First 30 matches there against BotBowl's scripted bot: won 14, drew 7, lost 9, touchdowns 25-15. Nothing changes in play.
 

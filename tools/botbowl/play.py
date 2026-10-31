@@ -4,7 +4,7 @@ Run from the botbowl-season3 folder (it needs its examples/ for the scripted bot
     python /path/to/BludBowl/tools/botbowl/play.py --n 20
 Sides swap every game. Prints wins, touchdowns, and how often BludBowl's answers had to be adjusted to BotBowl's rules.
 """
-import argparse, os, sys, time, types
+import argparse, math, os, sys, time, types
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.getcwd())
 try:
@@ -14,6 +14,16 @@ except ImportError:
 import botbowl
 from examples.scripted_bot_example import MyScriptedBot
 import bludbowl_bot
+
+
+def luck(a, b):
+    """Two-sided chance of a split at least this uneven if both sides were equally good (a binomial test, draws left out)."""
+    n = a + b
+    if n == 0:
+        return 1.0
+    k = max(a, b)
+    tail = sum(math.comb(n, i) for i in range(k, n + 1)) / 2 ** n
+    return min(1.0, 2 * tail)
 
 
 def main():
@@ -39,6 +49,7 @@ def main():
         res['won' if f > a else 'lost' if f < a else 'drew'] += 1
         print(f'{i + 1}/{args.n}: BludBowl {"home" if bb_home else "away"} {f}-{a} scripted ({time.time() - t0:.0f}s)', flush=True)
     print(f"\nBludBowl won {res['won']}, drew {res['drew']}, lost {res['lost']}; touchdowns {res['td_for']}-{res['td_against']}")
+    print(f"chance a split this uneven is luck: results {luck(res['won'], res['lost']):.0%}, touchdowns {luck(res['td_for'], res['td_against']):.0%}")
     if bludbowl_bot.BludBowlBot.fallbacks:
         print('adjusted to BotBowl:', dict(bludbowl_bot.BludBowlBot.fallbacks.most_common()))
     if bludbowl_bot._bridge:

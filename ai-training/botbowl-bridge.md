@@ -48,6 +48,7 @@ To run it (BotBowl Season 3 needs Python 3.8-3.11; on a machine without tkinter,
 
 First result, 30 matches (~8s each): BludBowl won 14, drew 7, lost 9, touchdowns 25-15 (in BludBowl itself, against the ported
 scripted bot: 48-31-21 of 100). Adjusted: 2 Blitz targets BotBowl wouldn't offer. Fixed on the way: players out for the drive
-(Sweltering Heat, a bad snack) must be marked unavailable, or set-up loops. Simple choices not asked of BludBowl yet: the
-Apothecary (always used), interceptions (the first player offered), skill uses (always), high kick (none).
+(Sweltering Heat, a bad snack) must be marked unavailable, or set-up loops. The Apothecary and interceptions are now
+asked of BludBowl too (v4.21). Still fixed: skill uses (always; BotBowl's Humans have none of the skills that ask), High Kick
+(no player moved under the ball).
 Step 4 (a bigger check, 100+ matches) is next.

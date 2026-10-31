@@ -319,13 +319,19 @@ class BludBowlBot(ProcBot):
         return Action(ActionType.FOLLOW_UP, position=vacated if go else here)
 
     def apothecary(self, game):
-        return Action(ActionType.USE_APOTHECARY)
+        proc = game.get_procedure()
+        ko = 'KNOCKED' in getattr(getattr(proc, 'outcome', None), 'name', '')
+        bh = 'BADLY_HURT' in getattr(getattr(proc, 'casualty_first', None), 'name', '')
+        use = bridge().ask('apothecary', self.describe(game), {'player': proc.player.player_id, 'kind': 'ko' if ko else 'cas', 'roll': 5 if bh else 12})
+        return Action(ActionType.USE_APOTHECARY if use else ActionType.DONT_USE_APOTHECARY)
 
     def interception(self, game):
-        for ac in game.get_available_actions():
-            if ac.action_type == ActionType.SELECT_PLAYER and ac.players:
-                return Action(ActionType.SELECT_PLAYER, player=ac.players[0])
-        return Action(ActionType.SELECT_NONE)
+        offered = [p for ac in game.get_available_actions() if ac.action_type == ActionType.SELECT_PLAYER for p in ac.players]
+        if not offered:
+            return Action(ActionType.SELECT_NONE)
+        pid = bridge().ask('intercept', self.describe(game), {'players': [p.player_id for p in offered]})
+        p = next((q for q in offered if q.player_id == pid), None)
+        return Action(ActionType.SELECT_PLAYER, player=p) if p is not None else Action(ActionType.SELECT_NONE)
 
     def use_pro(self, game):
         return Action(ActionType.USE_SKILL)
