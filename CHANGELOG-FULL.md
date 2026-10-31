@@ -2,6 +2,9 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.19 (31 Oct 2026)
+- **New (testing only):** a second computer coach to measure BludBowl's AI against: the scripted bot from BotBowl Season 3 (github.com/dhillier/botbowl-season3), ported decision for decision onto BludBowl's moves and odds, quirks included: its priority list each activation (stand up marked players, score at 70%+, hand-offs, safe blocks, pick-ups, receivers, Blitz, cage, assists, towards the ball, risky blocks), its re-roll and block-dice rules, first push square, always follow up, always the Apothecary, its Wedge/Zone set-ups and kick to the middle. It only plays when a test run asks for it (`--newp '{"brain":"botbowl"}'`); nothing changes in normal play. First result, 100 Human v Human matches: BludBowl's AI won 48, drew 31, lost 21, touchdowns 86-48 (not luck). The bot blocks far more (50 a match v 27) and causes more casualties, but scores far less.
+
 ## v4.18 (30 Oct 2026)
 - **Fixed:** when a block pushed a player onto the loose ball, the ball bounced straight away and the follow-up was asked afterwards, so the ball could come to rest in the empty square the blocker then followed up into, and stay there under them with no catch or pick-up. The rules say the follow-up is decided before any other dice are rolled: now the blocker follows up (or not) first, then the ball bounces, and if it bounces onto them they try to catch it.
 

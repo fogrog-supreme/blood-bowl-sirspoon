@@ -41,3 +41,6 @@ https://sirspoon.github.io/BludBowl/ (served from `main`).
   stats per team) and keeps the scripts to re-run it. Main finding so far: the AI throws about half as many blocks as
   good coaches (24 v 46 a match) and is too cautious generally (few 1-die blocks, hard dodges, rushes or re-rolls).
   Read `ai-training/README.md` before working on the AI.
+- Benchmark opponent: the BotBowl Season 3 scripted bot is ported into the AI module (`bbChoose` and friends, "brain:
+  botbowl"). Play BludBowl's AI against it with `node tools/ai-match.js --races human --n 100 --par 4 --newp '{"brain":"botbowl"}'`
+  (it's written for Humans, the only team BotBowl Season 3 has). v4.19 baseline: ours won 48, drew 31, lost 21, TDs 86-48.

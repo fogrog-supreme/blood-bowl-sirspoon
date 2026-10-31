@@ -2,6 +2,9 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.19 (31 Oct 2026)
+- Behind the scenes: a second computer coach (the BotBowl scripted bot) for testing the AI against. Nothing changes in play.
+
 ## v4.18 (30 Oct 2026)
 - Fixed: a ball knocked loose by a push could stop in the square the blocker then followed up into, left under them with no catch.
 

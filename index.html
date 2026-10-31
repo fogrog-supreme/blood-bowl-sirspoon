@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>BludBowl 4.18</title>
+    <title>BludBowl 4.19</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.18</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.19</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -26089,6 +26089,243 @@
                 return best ? { pid: best.p.id, kind: 'bomb', tx: best.x, ty: best.y } : null;
             }
 
+            // ---- (brain: botbowl) a second computer coach for comparison: the scripted bot from BotBowl Season 3
+            // (github.com/dhillier/botbowl-season3, examples/scripted_bot_example.py), ported decision for decision onto this game's
+            // moves and odds. It plays a team when that team's AIX setting 'brain' is 'botbowl' (a test run: --newp '{"brain":"botbowl"}').
+            // Kept as written there, quirks included (noted below); where its choice depends on BotBowl's engine the nearest equivalent
+            // here is used. Things it has no rule for (star players, special actions...) it simply doesn't do.
+            const bbOn = t => (t === 0 || t === 1) && AIX.p(t, 'brain', '') === 'botbowl';
+            const bbP = m => (m ? m.prob / 100 : 0);
+            const bbLeft = p => Math.max(0, (p.remainingMA || 0) - (p.isDown ? 3 : 0));   // (num_moves_left: no Rushes)
+            const bbRR = me => (state.rr[me] || 0) > 0 && !state.teamRRUsedThisTurn;
+            const bbWithRR = (p, me) => (bbRR(me) ? 1 - (1 - p) * (1 - p) : p);   // ('allow_team_reroll': roughly one re-roll of the risky step)
+            const bbPlan = (o) => Object.assign({ after: () => null }, o);   // (after: what a player who picked the ball up does next - nothing unless said)
+            const bbStrength = (atk, def, fx = atk.x, fy = atk.y) => {   // get_block_strengths: each side's Strength plus assists
+                let a = 0, d = 0;
+                for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+                    if (!dx && !dy) continue;
+                    const p1 = getPlayer(def.x + dx, def.y + dy); if (p1 && p1.team === atk.team && p1.id !== atk.id && canAssist(p1, def.team)) a++;
+                    const p2 = getPlayer(fx + dx, fy + dy); if (p2 && p2.team === def.team && p2.id !== def.id && canAssist(p2, atk.team)) d++;
+                }
+                return [atk.st + a, def.st + d];
+            };
+            // its preference among the block dice (block(): POW, a Stumble that works, Both Down with Block against no Block, Both Down
+            // on a ball carrier without Block, Push, Both Down, Player Down)
+            const bbRank = (f, atk, def) => {
+                const dodgy = hasSk(def, 'Dodge') && !hasSk(atk, 'Tackle'), carrier = state.ball.carrierId === def.id;
+                if (f === FACES.POW) return 7;
+                if (f === FACES.STUMBLE) return dodgy ? 3 : 6;
+                if (f === FACES.BOTH_DOWN) return hasSk(atk, 'Block') && !hasSk(def, 'Block') ? 5 : carrier && !hasSk(def, 'Block') ? 4.5 : 2;
+                if (f === FACES.PUSH1 || f === FACES.PUSH2) return 3;
+                return 0;
+            };
+            // get_block_probs: the chances the attacker goes down, the defender goes down, and of a fumble either side
+            function bbBlockProbs(atk, def, fx = atk.x, fy = atk.y, blitz = false) {
+                blitzCtx = blitz; let r;
+                try {
+                    const { n, chooser } = blockDice(atk, def, fx, fy), mine = chooser === atk.team;
+                    const dodgy = hasSk(def, 'Dodge') && !hasSk(atk, 'Tackle');
+                    let self = 0, opp = 0, fs = 0, fo = 0, total = 0;
+                    const rec = (k, picks) => {
+                        if (k === n) {
+                            const rk = picks.map(f => bbRank(f, atk, def)), v = mine ? Math.max(...rk) : Math.min(...rk), f = picks[rk.indexOf(v)];
+                            const sd = f === FACES.SKULL || (f === FACES.BOTH_DOWN && !hasSk(atk, 'Block') && !hasSk(atk, 'Wrestle'));
+                            const od = f === FACES.POW || (f === FACES.STUMBLE && !dodgy) || (f === FACES.BOTH_DOWN && !hasSk(def, 'Block'));
+                            if (sd) self++; if (od) opp++;
+                            if (sd && state.ball.carrierId === atk.id) fs++; if (od && state.ball.carrierId === def.id) fo++;
+                            total++; return;
+                        }
+                        for (let f = 1; f <= 6; f++) rec(k + 1, [...picks, f]);
+                    };
+                    rec(0, []);
+                    r = { pSelf: self / total, pOpp: opp / total, pFumbleSelf: fs / total, pFumbleOpp: fo / total, n, chooser };
+                } finally { blitzCtx = false; }
+                return r;
+            }
+            function bbSafestBlock(me) {
+                let best = null;
+                avail(me).filter(p => !p.isDown).forEach(a => adjacentTargets(a).forEach(d => {
+                    const b = bbBlockProbs(a, d), up = 1 - b.pSelf;
+                    if (!best || (up > best.up && b.pOpp >= b.pFumbleSelf)) best = { a, d, up, pOpp: b.pOpp, fs: b.pFumbleSelf, fo: b.pFumbleOpp };
+                }));
+                return best;
+            }
+            const bbBallPos = () => { const c = state.ball.carrierId ? getPlayerById(state.ball.carrierId) : null; return c && onPitch(c) ? { x: c.x, y: c.y } : state.ball.x >= 0 ? { x: state.ball.x, y: state.ball.y } : null; };
+            const bbSafeForward = (p, ms, fromTZ0 = true) => {   // the safest-and-furthest-forward square: no dice, no tackle zones at the end
+                let best = null, bd = 100;
+                (ms || []).forEach(m => { const d = toGo(m.x, p.team); if (m.prob === 100 && d < bd && tzFor(m.x, m.y, p.team) === 0) { best = m; bd = d; } });
+                return best;
+            };
+            function bbChoose() {
+                moveMemo = new Map();
+                const me = state.activeTeam, act = avail(me);
+                const carrier = state.ball.carrierId ? getPlayerById(state.ball.carrierId) : null;
+                // 1. stand up marked players
+                for (const p of act) if (p.isDown && !p.isStunned && tzFor(p.x, p.y, me) > 0) return bbPlan({ pid: p.id, kind: 'move', pick: () => null });
+                // 2. the ball carrier
+                if (carrier && carrier.team === me && act.includes(carrier)) {
+                    const ms = movesFor(carrier);
+                    // 2.1 score if it's 70% likely or more
+                    const td = ms.filter(m => m.x === endX(me)).sort((a, b) => b.prob - a.prob)[0];
+                    if (td && bbWithRR(bbP(td), me) >= 0.7) return bbPlan({ pid: carrier.id, kind: 'move', pick: mv => mv.filter(m => m.x === endX(me)).sort((a, b) => b.prob - a.prob)[0] || null });
+                    // 2.2 a hand-off to a player who can then score (quirk kept: it hands to the LAST such player checked, though the
+                    // best one's chance decides whether to do it at all)
+                    if (!state.handoffUsed) {
+                        let bestP = null, recv = null;
+                        state.players.filter(t => t.team === me && t !== carrier && onPitch(t) && !t.hasActed && !t.isDown && !t.isStunned).forEach(t => {
+                            if (toGo(t.x, me) > bbLeft(t)) return;
+                            const tdm = movesFor(t).filter(m => m.x === endX(me)).sort((a, b) => b.prob - a.prob)[0]; if (!tdm) return;
+                            const adj = cheb(carrier, t) === 1 ? { prob: 100, stay: true } : ms.filter(m => cheb(m, t) === 1).sort((a, b) => b.prob - a.prob)[0]; if (!adj) return;
+                            const p = bbWithRR(bbP(tdm), me) * bbWithRR(bbP(adj), me) * catchProb(t);
+                            if (bestP == null || p > bestP) bestP = p;
+                            recv = { t, stay: !!adj.stay };
+                        });
+                        if (recv && (bestP >= 0.7 || state.turn[me] >= TURNS)) {
+                            const r = recv.t;
+                            return bbPlan({ pid: carrier.id, kind: 'handoff', receiver: r.id, stay: recv.stay, pick: mv => mv.filter(m => cheb(m, r) === 1).sort((a, b) => b.prob - a.prob)[0] || null });
+                        }
+                    }
+                    // 2.3 not marked: move safely as far forward as possible
+                    if (tzFor(carrier.x, carrier.y, me) === 0 && bbSafeForward(carrier, ms)) return bbPlan({ pid: carrier.id, kind: 'move', pick: mv => bbSafeForward(carrier, mv) });
+                }
+                // 3. a safe block
+                let sb = bbSafestBlock(me);
+                if (sb && sb.up > 0.94 && sb.fs === 0) return bbPlan({ pid: sb.a.id, kind: 'block', target: sb.d.id });
+                // 4. pick up the ball (Secure the Ball isn't used here)
+                const bp = bbBallPos();
+                if (!state.ball.carrierId && bp) {
+                    let best = null;
+                    act.forEach(p => {
+                        if (cheb(p, bp) > (p.ma || 0) + 2) return;
+                        const m = movesFor(p).find(q => q.x === bp.x && q.y === bp.y);
+                        if (m && (!best || bbP(m) > best.p)) best = { p: bbP(m), q: p };
+                    });
+                    if (best && best.p > 0.33) {
+                        const q = best.q, onward = tzFor(bp.x, bp.y, me) === 0 && endX(me) !== bp.x;
+                        return bbPlan({ pid: q.id, kind: 'move', pick: mv => mv.find(m => m.x === bp.x && m.y === bp.y) || null, after: onward ? (mv => bbSafeForward(q, mv)) : () => null });
+                    }
+                }
+                const open = act.filter(p => tzFor(p.x, p.y, me) === 0);
+                // 5. receivers (Catch) towards the end zone (quirk kept: it wants a square that IS in a tackle zone)
+                for (const p of open) {
+                    if (!hasSk(p, 'Catch') || p === carrier || toGo(p.x, me) > bbLeft(p)) continue;
+                    const pickR = mv => { let b = null, bd = 100; mv.forEach(m => { const d = toGo(m.x, me); if (m.prob === 100 && d < bd && tzFor(m.x, m.y, me) > 0) { b = m; bd = d; } }); return b; };
+                    if (pickR(movesFor(p))) return bbPlan({ pid: p.id, kind: 'move', pick: pickR });
+                }
+                // 6. a Blitz by an unmarked player with Block
+                if (!state.blitzUsed) {
+                    let best = null;
+                    open.filter(p => hasSk(p, 'Block')).forEach(b => {
+                        const opts = movesFor(b).map(m => ({ x: m.x, y: m.y, prob: m.prob, cost: m.cost })).concat(b.isDown ? [] : [{ x: b.x, y: b.y, prob: 100, cost: 0, here: true }]);
+                        opts.forEach(m => state.players.forEach(d => {
+                            if (d.team === me || !onPitch(d) || d.isDown || Math.max(Math.abs(d.x - m.x), Math.abs(d.y - m.y)) !== 1) return;
+                            const need = m.cost + 1, room = bbLeft(b) + (b.rushes || 0);
+                            if (need > room) return;
+                            const pathP = bbP(m) * (need > bbLeft(b) ? 5 / 6 : 1);   // (the block's own square of movement may be a Rush)
+                            const pr = bbBlockProbs(b, d, m.x, m.y, true);
+                            const fs = state.ball.carrierId === b.id ? pathP + (1 - pathP) * pr.pFumbleSelf : pr.pFumbleSelf;   // (as written there)
+                            const score = pathP * (1 - pr.pSelf) + pathP * pr.pOpp + pr.pFumbleOpp * pathP - fs;
+                            if (!best || score > best.score) best = { b, d, m, score };
+                        }));
+                    });
+                    if (best && best.score >= 1.25) {
+                        const { b, d, m } = best;
+                        return bbPlan({ pid: b.id, kind: 'blitz', target: d.id, pick: mv => (m.here ? null : mv.find(q => q.x === m.x && q.y === m.y) || null) });
+                    }
+                }
+                // 7. a cage round the ball (quirk kept: round whoever has it)
+                if (carrier && bp) {
+                    const cage = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([dx, dy]) => ({ x: bp.x + dx, y: bp.y + dy }));
+                    for (const c of cage) {
+                        if (getPlayer(c.x, c.y) || !inPitch(c.x, c.y)) continue;
+                        for (const p of open) {
+                            if (p === carrier || cage.some(q => q.x === p.x && q.y === p.y) || cheb(p, c) > bbLeft(p)) continue;
+                            const m = movesFor(p).find(q => q.x === c.x && q.y === c.y);
+                            if (m && bbP(m) > 0.94) return bbPlan({ pid: p.id, kind: 'move', pick: mv => mv.find(q => q.x === c.x && q.y === c.y) || null });
+                        }
+                    }
+                }
+                // 8. into assist positions: next to an opponent we're marking who isn't stronger than our player there, where they're alone
+                const assist = new Set();
+                state.players.filter(o => o.team !== me && onPitch(o) && !o.isDown).forEach(o => {
+                    state.players.filter(q => q.team === me && onPitch(q) && !q.isDown && cheb(q, o) === 1).forEach(q => {
+                        const [as, ds] = bbStrength(o, q);
+                        if (ds < as) return;
+                        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+                            const x = o.x + dx, y = o.y + dy;
+                            if ((!dx && !dy) || !inPitch(x, y) || getPlayer(x, y)) continue;
+                            const opps = state.players.filter(z => z.team !== me && onPitch(z) && !z.isDown && Math.max(Math.abs(z.x - x), Math.abs(z.y - y)) === 1).length;
+                            if (opps === 1) assist.add(x + ',' + y);
+                        }
+                    });
+                });
+                for (const p of open) {
+                    const m = movesFor(p).find(q => q.prob === 100 && assist.has(q.x + ',' + q.y));
+                    if (m) return bbPlan({ pid: p.id, kind: 'move', pick: mv => mv.find(q => q.x === m.x && q.y === m.y) || null });
+                }
+                // 9. towards the ball (a loose ball, or their carrier)
+                for (const p of open) {
+                    if (p === carrier || (carrier && carrier.team === me) || !bp) continue;
+                    const goal = carrier ? carrier : bp;
+                    let best = null, bd = null;
+                    movesFor(p).forEach(m => { const d = cheb(m, goal); if (bd == null || (m.prob === 100 && d < bd)) { bd = d; best = m; } });   // (as written: the first square counts whatever its odds)
+                    if (best) return bbPlan({ pid: p.id, kind: 'move', pick: mv => mv.find(q => q.x === best.x && q.y === best.y) || null });
+                }
+                // 10. a riskier block
+                sb = bbSafestBlock(me);
+                if (sb && (sb.pOpp > 1 - sb.up || sb.fo > 0)) return bbPlan({ pid: sb.a.id, kind: 'block', target: sb.d.id });
+                // 11. end the turn
+                return null;
+            }
+            // its other decisions
+            const bbReroll = ctx => !!ctx && ['DODGE', 'PICKUP', 'PASS', 'CATCH', 'RUSH'].includes(ctx.type);   // re-roll every failed Dodge, pick-up, pass, catch and Rush
+            function bbDice(c) {   // its own blocks: the block-dice re-roll, then the die by its order
+                const btns = [...document.querySelectorAll('#dice-container button')], trr = document.getElementById('btn-combat-trr');
+                const mine = c.chooser === c.atk.team, n = c.dice.length, ranks = c.dice.map(f => bbRank(f, c.atk, c.def));
+                const down = c.dice.filter(f => f === FACES.SKULL || (f === FACES.BOTH_DOWN && !hasSk(c.atk, 'Block') && !hasSk(c.atk, 'Wrestle'))).length;
+                const best = mine ? Math.max(...ranks) : Math.min(...ranks);
+                const rr = !trr.classList.contains('hidden') && !c.aiRerolled && (
+                    (down > 0 && !mine) || (down === n && mine)   // reroll(): a Player Down the defender would pick, or nothing but
+                    || (mine && best < 4.5 && state.ball.carrierId === c.def.id)   // block(): no knock-down on their ball carrier
+                    || (mine && best === 0 && n > 1));
+                if (rr) { after('dice-rr', 1100, () => { c.aiRerolled = true; click('btn-combat-trr'); }); return; }
+                if (!mine && !isAI(c.chooser)) return;   // (the other side picks)
+                after('dice', 900, () => {
+                    const idx = ranks.indexOf(best), b = btns[idx]; if (!b) return;
+                    c.aiPicking = true; b.classList.add('ai-pick');
+                    setTimeout(() => { c.aiPicking = false; if (vis('modal-dice')) act(() => b.click()); }, 1300 * speed);
+                });
+            }
+            // set-up: its 'Wedge offense' receiving and 'Zone defense' kicking, players picked by role as its Formation does
+            // (S strongest, b Block, m fastest, 0 fewest skills, x Block or else not a catcher/thrower), the line of scrimmage first
+            const BB_OFF = ['-------------', '-------------', '----------m--', '-----------x-', '-------------', '------------S', '------------x', '-----s---0--S', '------------x', '------------S', '-------------', '-----------x-', '----------m--', '-------------', '-------------'];
+            const BB_DEF = ['-------------', '--------x-b--', '-------------', '-------------', '--------x-S--', '------------0', '-------------', '------------0', '-------------', '------------0', '--------x-S--', '-------------', '--------x-b--', '-------------', '-------------'];
+            function bbSetup(team) {
+                if (GEO.sev || state.setup.eventSetup || state.setup.restrictIds) { setupTeam(team); return; }
+                const ps = state.players.filter(p => p.team === team && !p.isCasualty && !p.isEjected && !p.isKO && !p.isReserve);
+                const F = state.kickoff && state.kickoff.receivingTeam === team ? BB_OFF : BB_DEF, W = F[0].length;
+                const score = { S: p => p.st + (hasSk(p, 'Block') ? 0.5 : 0) - (hasSk(p, 'Sure Hands') ? 0.5 : 0), m: p => p.ma, s: p => +hasSk(p, 'Sure Hands'), p: p => +hasSk(p, 'Pass'),
+                    c: p => +hasSk(p, 'Catch'), b: p => +hasSk(p, 'Block'), d: p => +hasSk(p, 'Dodge'), 0: p => -p.skills.length, x: p => hasSk(p, 'Block') ? 1 : (hasSk(p, 'Pass') || hasSk(p, 'Catch')) ? 0 : 0.5 };
+                const keep = ps.map(p => [p.x, p.y]); ps.forEach(p => { p.x = -9; p.y = -9; p.isReserve = false; });
+                const pool = ps.slice(), used = new Set(), mx = x => team === TEAMS.HUMAN ? x : CFG.cols - 1 - x;
+                const take = t => { let bi = 0; pool.forEach((p, i) => { if (score[t](p) > score[t](pool[bi])) bi = i; }); return pool.splice(bi, 1)[0]; };
+                const order = ['S', 's', 'p', 'b', 'c', 'm', 'a', 'v', 'd', '0', 'x'];
+                order.forEach(t => F.forEach((row, y) => { const x = W - 1; if (pool.length && row[x] === t && !used.has(x + ',' + y)) { const p = take(t); p.x = mx(x); p.y = y; used.add(x + ',' + y); } }));
+                order.forEach(t => F.forEach((row, y) => { for (let x = W - 1; x >= 0; x--) if (pool.length && row[x] === t && !used.has(x + ',' + y)) { const p = take(t); p.x = mx(x); p.y = y; used.add(x + ',' + y); } }));
+                pool.forEach(p => { p.isReserve = true; p.x = -9; p.y = -9; });   // (more players than squares: the rest wait)
+                state.selectedId = null; updateSetupHUD(); render();
+                if (validateSetup(team).valid) click('btn-confirm-setup');
+                else { ps.forEach((p, i) => { p.isReserve = false; p.x = keep[i][0]; p.y = keep[i][1]; }); setupTeam(team); }
+            }
+            function bbKick() {   // the middle of their half
+                if (GEO.sev) { kickTarget(); return; }
+                grid(state.kickoff.receivingTeam === TEAMS.HUMAN ? 6 : 19, 7);
+            }
+            function bbTouchback() {   // a player with Block, or else the last one
+                const r = state.kickoff.receivingTeam, ps = state.players.filter(p => p.team === r && onPitch(p) && !p.isDown && !p.isStunned);
+                const q = ps.find(p => hasSk(p, 'Block')) || ps[ps.length - 1];
+                if (q) grid(q.x, q.y); else touchback();
+            }
             function endAction(p) {
                 const secure = p.actionTaken === 'secure_ball' && state.ball.carrierId !== p.id;
                 plan = null;
@@ -26199,7 +26436,7 @@
                     if (plan.kind === 'pass' || plan.kind === 'handoff') { doThrow(p); return; }
                     if (state.ball.carrierId === p.id && !plan.advanced && p.remainingMA > 0) {
                         plan.advanced = true;
-                        const m2 = feedPick(state.moves, p, carrierPick(state.moves, p));
+                        const m2 = feedPick(state.moves, p, plan.after ? plan.after(state.moves, p) : carrierPick(state.moves, p));
                         if (m2) { act(() => startPath(p, m2.path)); return; }
                     }
                     if (feedMove(p)) return;
@@ -26604,12 +26841,13 @@
                 if (vis('modal-choice')) {
                     const c = state.choice;
                     if (c && isAI(c.team)) after('choice', 1100, () => {
+                        if (bbOn(c.team) && /APOTHECARY/.test(document.getElementById('choice-title').textContent || '') && !c.options) { click('btn-choice-yes'); return; }   // (brain: botbowl) always
                         if (c.options) { let i = 0; try { i = typeof c.ai === 'function' ? c.ai() : (c.ai || 0); } catch (e) { console.error(e); } click('choice-opt-' + Math.max(0, Math.min(c.options - 1, i | 0))); }
                         else click(c.ai === 'no' ? 'btn-choice-no' : 'btn-choice-yes');
                     });
                     return;
                 }
-                if (vis('modal-team-reroll')) { if (isAI(state.activeTeam)) after('trr', 1000, () => click(rrWorth(state.trrCtx) ? 'btn-trr-yes' : 'btn-trr-no')); return; }
+                if (vis('modal-team-reroll')) { if (isAI(state.activeTeam)) after('trr', 1000, () => click((bbOn(state.activeTeam) ? bbReroll(state.trrCtx) : rrWorth(state.trrCtx)) ? 'btn-trr-yes' : 'btn-trr-no')); return; }
                 if (vis('modal-roll')) {
                     const r = state.pendingRoll;
                     if (r && isAI(r.player.team)) after('roll', 700, () => {
@@ -26620,13 +26858,13 @@
                     });
                     return;
                 }
-                if (vis('modal-dice')) { diceChoice(); return; }
+                if (vis('modal-dice')) { const c = state.combat; if (c && c.dice && !c.aiPicking && bbOn(state.activeTeam) && c.atk && c.atk.team === state.activeTeam && isAI(state.activeTeam)) bbDice(c); else diceChoice(); return; }
                 if (state.ballAnimation.active || state.flightAnimation.active || REPLAY.busy()) return;   // (and a replay playing)
                 const d = decider();
                 switch (state.mode) {
-                    case MODES.SETUP: plan = null; if (isAI(d) && !CHEAT.placesFor(d)) after('setup', 1300, () => setupTeam(d)); return;
-                    case MODES.KICKOFF_TARGET: if (isAI(d)) after('kick', 1300, kickTarget); return;
-                    case MODES.TOUCHBACK_CHOICE: if (isAI(d)) after('touchback', 1200, touchback); return;
+                    case MODES.SETUP: plan = null; if (isAI(d) && !CHEAT.placesFor(d)) after('setup', 1300, () => (bbOn(d) ? bbSetup(d) : setupTeam(d))); return;
+                    case MODES.KICKOFF_TARGET: if (isAI(d)) after('kick', 1300, bbOn(d) ? bbKick : kickTarget); return;
+                    case MODES.TOUCHBACK_CHOICE: if (isAI(d)) after('touchback', 1200, bbOn(d) ? bbTouchback : touchback); return;
                     case MODES.INTERCEPT_CHOICE: if (isAI(d)) after('intercept', 1000, interception); return;
                     case MODES.KICKOFF_SELECT: if (isAI(d)) after('ksel', 1100, kickoffSelect); return;
                     case MODES.KICKOFF_MOVE: if (isAI(d)) after('kmove', 1100, () => click('btn-event-confirm')); return;
@@ -26640,9 +26878,9 @@
                         if (f === 4) { click('btn-event-confirm'); return; }
                         grid(p.x + BNC_FACE[f][0], p.y + BNC_FACE[f][1]);   // first tap previews, the next one rolls
                     }); return;
-                    case MODES.PUSH_CHOICE: if (isAI(d)) after('push', 900, pushChoice); return;
+                    case MODES.PUSH_CHOICE: if (isAI(d)) after('push', 900, () => { const c = state.combat, q = c && (c.pushSquares || [])[0]; if (bbOn(d) && q && !c.sidestep) grid(q.x, q.y); else pushChoice(); }); return;   // (brain: botbowl: the first square offered)
                     case MODES.BOMB_RETHROW: if (isAI(d)) after('rethrow', 1000, () => { const p = state.bombRe && getPlayerById(state.bombRe.id); if (p) { const t = bombAim(p); grid(t.x, t.y); } }); return;
-                    case MODES.FOLLOWUP_CHOICE: if (isAI(d)) after('follow', 800, followUp); return;
+                    case MODES.FOLLOWUP_CHOICE: if (isAI(d)) after('follow', 800, () => { const v = state.combat && state.combat.vacatedSquare; if (bbOn(d) && v) grid(v.x, v.y); else followUp(); }); return;   // (brain: botbowl: always follow up)
                 }
                 if (!isAI(state.activeTeam)) { plan = null; return; }
                 if (vis('turn-banner')) return;
@@ -26654,7 +26892,7 @@
                 after('choose', 450, () => {
                     const t0c = performance.now();
                     try { starAIPre(state.activeTeam); } catch (e) { console.error(e); }
-                    try { plan = choose(); } catch (e) { console.error(e); plan = null; }
+                    try { plan = bbOn(state.activeTeam) ? bbChoose() : choose(); } catch (e) { console.error(e); plan = null; }
                     if (window.AI_TIMES) window.AI_TIMES.push(Math.round(performance.now() - t0c));
                     if (window.AI_TRACE) { const q = plan && getPlayerById(plan.pid); window.AI_TRACE.push(plan ? `${plan.kind} ${q ? q.type + '@' + q.x + ',' + q.y : ''}${plan.target != null ? ' -> ' + plan.target : ''}${plan.receiver != null ? ' to ' + plan.receiver : ''}` : 'END TURN'); }
                     if (plan) { plan.step = 0; const p = getPlayerById(plan.pid), t = plan.target != null ? getPlayerById(plan.target) : null; cameraFocus([p, t && cheb(p, t) <= 3 ? t : null]); }
