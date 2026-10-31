@@ -24,7 +24,9 @@ SELECT = {1: ActionType.SELECT_ATTACKER_DOWN, 2: ActionType.SELECT_BOTH_DOWN, 3:
           5: ActionType.SELECT_DEFENDER_STUMBLES, 6: ActionType.SELECT_DEFENDER_DOWN}
 ROLL_TYPE = {'Dodge': 'DODGE', 'GFI': 'RUSH', 'Pickup': 'PICKUP', 'Catch': 'CATCH', 'PassAttempt': 'PASS', 'Jump': 'JUMP', 'SecureBall': 'PICKUP'}
 START = {'move': ActionType.START_MOVE, 'block': ActionType.START_BLOCK, 'blitz': ActionType.START_BLITZ, 'handoff': ActionType.START_HANDOFF,
-         'pass': ActionType.START_PASS, 'foul': ActionType.START_FOUL, 'secure': ActionType.START_SECURE_BALL, 'pickup': ActionType.START_MOVE}
+         'pass': ActionType.START_PASS, 'foul': ActionType.START_FOUL, 'secure': ActionType.START_SECURE_BALL, 'pickup': ActionType.START_MOVE,
+         'stab': ActionType.START_STAB, 'vomit': ActionType.START_PROJECTILE_VOMIT, 'chainsaw': ActionType.START_CHAINSAW,
+         'gaze': ActionType.START_HYPNOTIC_GAZE, 'bomb': ActionType.START_THROW_BOMB, 'ttm': ActionType.START_THROW_TEAM_MATE}
 SKILL_NAME = {'THROW_TEAM_MATE': 'Throw Team Mate', 'MIGHTY_BLOW': 'Mighty Blow'}
 
 
@@ -101,7 +103,7 @@ class BludBowlBot(ProcBot):
                         st = 'out'   # (Sweltering Heat or a bad snack: sits out this drive)
                     x = y = None
                 ma = p.get_ma()
-                players.append({'id': p.player_id, 'team': s, 'type': p.role.name, 'race': 'human', 'ma': ma, 'st': p.get_st(), 'ag': p.get_ag_target(),
+                players.append({'id': p.player_id, 'team': s, 'type': p.role.name, 'race': team.race, 'ma': ma, 'st': p.get_st(), 'ag': p.get_ag_target(),
                                 'pa': p.get_pa(), 'av': p.get_armor_target() if hasattr(p, 'get_armor_target') else p.get_av(),
                                 'skills': [skill_name(k) for k in p.get_skills()], 'x': x, 'y': y, 'state': st, 'used': bool(p.state.used),
                                 'maLeft': max(0, ma - p.state.moves)})
@@ -123,7 +125,10 @@ class BludBowlBot(ProcBot):
             kick = {'kicking': sides[game.get_kicking_team().team_id], 'receiving': sides[game.get_receiving_team().team_id]}
         except Exception:
             pass
-        return {'me': sides[me.team_id], 'active': sides[cur.team_id] if cur is not None else sides[me.team_id], 'half': game.state.half, 'turn': turn, 'rr': rr, 'rrUsed': False,
+        races = [None, None]
+        for t in teams:
+            races[sides[t.team_id]] = t.race
+        return {'races': races, 'me': sides[me.team_id], 'active': sides[cur.team_id] if cur is not None else sides[me.team_id], 'half': game.state.half, 'turn': turn, 'rr': rr, 'rrUsed': False,
                 'used': used, 'weather': WEATHER.get(game.get_weather().name, 'perfect'), 'ball': ball, 'players': players, 'kick': kick,
                 'tried': sorted(self.tried)}
 
@@ -157,11 +162,18 @@ class BludBowlBot(ProcBot):
 
     def setup(self, game):
         self.my_team = game.get_team_by_id(self.my_team.team_id)
+        # (a turn that ended early - a touchdown, a turnover - can leave its moves queued: they're no use now)
+        self.queue = [a for a in self.queue if a.action_type in (ActionType.PLACE_PLAYER, ActionType.END_SETUP)]
         while self.queue:   # (a placement BotBowl won't take is skipped)
             a = self.queue.pop(0)
             if self.allowed(game, a):
                 return a
             self.fallbacks['set-up placement' + (' (to reserves)' if a.position is None else ' at %s,%s' % (a.position.x - 1, a.position.y - 1))] += 1
+            if os.environ.get('BB_TRACE'):
+                ac = next((c for c in game.get_available_actions() if c.action_type == a.action_type), None)
+                print('  refused', a.action_type.name, a.player.role.name if a.player else None, a.player.position if a.player else None, '->', a.position,
+                      '| allowed squares:', len(ac.positions) if ac else None, 'in list:', (a.position in ac.positions) if ac else None, 'player ok:', (a.player in ac.players) if ac and ac.players else 'n/a',
+                      '| kicking:', game.get_kicking_team().team_id == self.my_team.team_id, 'side', self.side(game, self.my_team), 'types', [c.action_type.name for c in game.get_available_actions()], flush=True)
         if getattr(self, 'setup_asked', None) == (game.state.half, self.my_team.state.turn, game.state.home_team.state.score + game.state.away_team.state.score):
             return Action(ActionType.END_SETUP)   # (already placed once for this kick-off: done)
         self.setup_asked = (game.state.half, self.my_team.state.turn, game.state.home_team.state.score + game.state.away_team.state.score)
@@ -207,8 +219,13 @@ class BludBowlBot(ProcBot):
     def turn(self, game):
         self.my_team = game.get_team_by_id(self.my_team.team_id)
         key = (game.state.half, self.my_team.state.turn)
-        if key != self.turn_key:
-            self.turn_key, self.tried, self.queue = key, set(), []
+        if key != self.turn_key or (self.queue and self.queue[0].action_type in (ActionType.PLACE_PLAYER, ActionType.END_SETUP)):
+            self.turn_key, self.tried, self.queue, self.asks = key, set(), [], 0
+        self.asks = getattr(self, 'asks', 0) + 1
+        if self.asks > 80:   # (something isn't moving the turn on: end it rather than go round for ever)
+            self.fallbacks['turn ended: too many decisions'] += 1
+            self.queue = []
+            return Action(ActionType.END_TURN)
         while self.queue:
             a = self.queue.pop(0)
             if self.allowed(game, a):
@@ -248,9 +265,18 @@ class BludBowlBot(ProcBot):
             prev = s
         # the last step, at the target's square
         last = {'block': (ActionType.BLOCK, t), 'blitz': (ActionType.BLOCK, t), 'foul': (ActionType.FOUL, t),
-                'handoff': (ActionType.HANDOFF, r), 'pass': (ActionType.PASS, r)}.get(kind)
+                'handoff': (ActionType.HANDOFF, r), 'pass': (ActionType.PASS, r), 'stab': (ActionType.STAB, t),
+                'vomit': (ActionType.PROJECTILE_VOMIT, t), 'chainsaw': (ActionType.CHAINSAW, t), 'gaze': (ActionType.HYPNOTIC_GAZE, t)}.get(kind)
         if last and last[1] is not None and last[1].position is not None:
             acts.append(Action(last[0], position=last[1].position))
+        if kind == 'ttm':   # pick up the team-mate, then throw them at the square
+            g = game.get_player(plan['thrown']) if plan.get('thrown') else None
+            if g is not None and g.position is not None:
+                acts.append(Action(ActionType.PICKUP_TEAM_MATE, position=g.position))
+            if plan.get('tx') is not None:
+                acts.append(Action(ActionType.THROW_TEAM_MATE, position=Square(plan['tx'] + 1, plan['ty'] + 1)))
+        if kind == 'bomb' and plan.get('tx') is not None:
+            acts.append(Action(ActionType.THROW_BOMB, position=Square(plan['tx'] + 1, plan['ty'] + 1)))
         return acts
 
     def player_action(self, game):

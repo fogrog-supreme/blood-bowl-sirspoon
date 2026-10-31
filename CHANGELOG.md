@@ -2,6 +2,9 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.22 (31 Oct 2026)
+- Behind the scenes: BludBowl's AI plays every team inside BotBowl, special actions included. Nothing changes in play.
+
 ## v4.21 (31 Oct 2026)
 - Behind the scenes: BludBowl's AI as a BotBowl bot also makes its own Apothecary and interception calls. Nothing changes in play.
 

@@ -2,6 +2,9 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.22 (31 Oct 2026)
+- **Improved (testing only):** the AI's decision service (`AI.bridge`) now takes any team: it switches BludBowl to the teams' races, matches each player to BludBowl's position (by name, else the nearest characteristics) with BludBowl's own skill and trait names, and names the team-mate for a Throw Team-mate. The BotBowl bot (`tools/botbowl/`) plays Stab, Projectile Vomit, Chainsaw, Hypnotic Gaze, bombs and Throw Team-mate, and `play.py --team orc` (any Season 3 team; needs BotBowl's team-expansion version) plays a mirror match with BotBowl's squads. Fixed: a turn that ended early (a touchdown, a turnover) left its moves queued, and the next set-up tried to play them. First results, 10 matches each against BotBowl's scripted bot: Orc won 6 drew 3 lost 1, Skaven 7-1-2, Dwarf 3-6-1, Wood Elf (20) 9-8-3. Nothing changes in play.
+
 ## v4.21 (31 Oct 2026)
 - **Improved (testing only):** the AI's decision service (`AI.bridge`) also answers the Apothecary (the game's own call: how valuable the player is, how much match is left) and which player tries an interception, so BludBowl's AI makes those choices itself when it plays inside BotBowl. The BotBowl match runner (`tools/botbowl/play.py`) now gives the chance each result split is just luck. Nothing changes in play.
 

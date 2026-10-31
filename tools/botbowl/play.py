@@ -30,13 +30,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--n', type=int, default=10)
     ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--team', default='human', help="a Season 3 team (orc, dwarf, wood-elf...): both sides play it (BotBowl's coverage squads; needs the team-expansion version)")
     args = ap.parse_args()
     config = botbowl.load_config('season3-preview')
     rules = botbowl.load_rule_set(config.ruleset)
     res = {'won': 0, 'drew': 0, 'lost': 0, 'td_for': 0, 'td_against': 0}
     for i in range(args.n):
-        home = botbowl.load_team_by_filename('human', rules)
-        away = botbowl.load_team_by_filename('human', rules)
+        if args.team == 'human':
+            home = botbowl.load_team_by_filename('human', rules)
+            away = botbowl.load_team_by_filename('human', rules)
+        else:
+            from examples.season3_teams import coverage_squads, build_team
+            squad = next(coverage_squads(args.team))
+            home, away = build_team(squad, rules), build_team(squad, rules)
         bb_home = i % 2 == 0
         ours, theirs = bludbowl_bot.BludBowlBot('BludBowl'), MyScriptedBot('Scripted')
         game = botbowl.Game(f'g{i}', home, away, ours if bb_home else theirs, theirs if bb_home else ours, config, ruleset=rules, seed=args.seed + i)

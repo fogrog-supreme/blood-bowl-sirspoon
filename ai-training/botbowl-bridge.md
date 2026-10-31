@@ -59,3 +59,18 @@ itself (48-31-21 against the ported bot).
 Adjusted to BotBowl's rules: 2 Blitz targets, and set-up placements BotBowl refused in a handful of the ~500 set-ups (60
 squares in all, often a whole set-up at once): the skipped players start in reserve. Worth a look next: probably a
 set-up asked for at a moment BludBowl reads the kicking side or squares differently (it didn't stop any match).
+
+## Every team (v4.22, 31 Oct 2026)
+BotBowl Season 3's branch `codex/local-team-expansion` (not yet merged) has all 30 Season 3 rosters (159 positions) and all
+108 skills and traits; `examples/season3_teams.py` builds "coverage squads" (every position used, so they include Big Guys and
+special players). `git checkout codex/local-team-expansion` in the BotBowl folder, then e.g.
+`python /path/to/BludBowl/tools/botbowl/play.py --n 20 --team skaven` (both sides play that squad).
+
+The bridge switches BludBowl to the teams' races, matches players to BludBowl's positions (name, else nearest characteristics)
+and uses BludBowl's skill/trait names; the bot maps Stab, Projectile Vomit, Chainsaw, Hypnotic Gaze, bombs and Throw Team-mate
+to BotBowl's actions (Kick Team-mate, Ball & Chain and the rest aren't mapped yet: they're played as plain moves and counted).
+The "refused set-up placements" seen before were stale moves from a turn that ended early (fixed).
+
+First results against BotBowl's scripted bot: Orc 6-3-1, Skaven 7-1-2, Dwarf 3-6-1 (10 matches each), Wood Elf 9-8-3 (20).
+Still adjusted now and then: a Blitz plan or target BotBowl won't take (the AI is asked again with that player set aside).
+Next: the other 26 teams, and a 100+ match check per team for the ones that matter most.

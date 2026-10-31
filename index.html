@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>BludBowl 4.21</title>
+    <title>BludBowl 4.22</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.21</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.22</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -26910,13 +26910,35 @@
                 // d: { me, active, half, turn: [t0, t1], rr: [r0, r1], rrUsed, used: { blitz, pass, handoff, foul, ttm }, weather,
                 //      kick: { kicking, receiving }, ball: { x, y, carrier }, tried: [ids],
                 //      players: [{ id, team, type, ma, st, ag, pa, av, skills, x, y, state: up|prone|stunned|ko|cas|reserve|out, used, maLeft, rushesLeft }] }
+                // the BludBowl team and position for a player described from outside: by name, else the nearest characteristics
+                let raceNow = null;
+                const norm = v => String(v || '').toLowerCase().replace(/[^a-z]/g, '');
+                function typeFor(race, q) {
+                    const R = RACES[race]; if (!R) return null;
+                    const ts = Object.entries(R.types), n = norm(q.type);
+                    let hit = ts.find(([k, t]) => norm(t.type) === n) || ts.find(([k, t]) => n.endsWith(norm(t.type)) || norm(t.type).endsWith(n));
+                    if (hit) return { k: hit[0], t: hit[1] };
+                    let best = null;
+                    ts.forEach(([k, t]) => { const sc = Math.abs((t.st || 3) - q.st) * 3 + Math.abs((t.ma || 6) - q.ma) + Math.abs((t.ag || 3) - q.ag) * 2 + Math.abs((t.av || 9) - q.av); if (!best || sc < best.sc) best = { sc, k, t }; });
+                    return best;
+                }
                 function load(d) {
+                    if (Array.isArray(d.races)) {   // the teams' races (BludBowl's: their values, set-ups and so on)
+                        const ks = d.races.map(r => { try { return FREP.raceOf(r) || (RACES[r] ? r : null); } catch (e) { return null; } });
+                        const key = ks.join('|');
+                        if (ks[0] && ks[1] && key !== raceNow) { try { setTeams(ks[0], ks[1]); raceNow = key; } catch (e) { console.error('bridge races', e); } }
+                    }
+                    const raceOf = t => (ROSTERS[t] && (ROSTERS[t].race || ROSTERS[t].key)) || null;
                     const tpl = [state.players.find(p => p.team === 0), state.players.find(p => p.team === 1)];
                     idOf = new Map(); extOf = new Map();
                     state.players = (d.players || []).map((q, i) => {
                         const base = tpl[q.team] || tpl[0] || {};
-                        const p = Object.assign({}, base, { id: i + 1, team: q.team, type: q.type || 'Player', label: (q.type || 'P').slice(0, 2), name: q.name || null, star: null, posKey: null,
-                            ma: q.ma, st: q.st, ag: q.ag, pa: q.pa == null ? 0 : q.pa, av: q.av, skills: (q.skills || []).slice(), baseSkills: (q.skills || []).slice(), usedSkills: [],
+                        // BludBowl's position, and its skill names (traits like 'Loner (4+)' included), plus any skill the player has beyond those
+                        const m = typeFor(raceOf(q.team), q), tSk = m ? (m.t.skills || []) : [];
+                        const extra = (q.skills || []).filter(k => !tSk.some(x => norm(x).startsWith(norm(k))));
+                        const sk = m ? tSk.concat(extra) : (q.skills || []).slice();
+                        const p = Object.assign({}, base, { id: i + 1, team: q.team, type: m ? m.t.type : (q.type || 'Player'), label: m ? m.t.label : (q.type || 'P').slice(0, 2), name: q.name || null, star: null, posKey: m ? m.k : null,
+                            ma: q.ma, st: q.st, ag: q.ag, pa: q.pa == null ? 0 : q.pa, av: q.av, skills: sk.slice(), baseSkills: sk.slice(), usedSkills: [],
                             actionTaken: null, walkAnim: null, bumpAnim: null, starUsed: {}, gStats: {} });
                         blank.forEach(k => { p[k] = false; });
                         const on = q.x != null && q.y != null && ['up', 'prone', 'stunned'].includes(q.state);
@@ -26963,7 +26985,8 @@
                     const adj = q => q && Math.max(Math.abs(q.x - p.x), Math.abs(q.y - p.y)) === 1;
                     const already = (pl.kind === 'blitz' || pl.kind === 'foul') && adj(t) || ((pl.kind === 'handoff' || pl.kind === 'pass') && pl.stay);
                     if (!already && pl.pick) { try { const m = pl.pick(movesFor(p), p); if (m && m.path) route = m.path.map(s => ({ x: s.x, y: s.y })); } catch (e) { console.error('bridge pick', e); } }
-                    return { kind: pl.kind, player: ext(p), target: ext(t), receiver: ext(r), route, tx: pl.tx, ty: pl.ty, standUp: !!p.isDown };
+                    const thrown = pl.kind === 'ttm' && pl.reserve ? getPlayerById(pl.reserve[1]) : null;   // (the team-mate to throw)
+                    return { kind: pl.kind, player: ext(p), target: ext(t), receiver: ext(r), thrown: ext(thrown), route, tx: pl.tx, ty: pl.ty, standUp: !!p.isDown };
                 }
                 // a failed roll: use a team re-roll? ctx: { type: DODGE|RUSH|PICKUP|CATCH|PASS|..., player, target }
                 function reroll(ctx) {
