@@ -51,4 +51,11 @@ scripted bot: 48-31-21 of 100). Adjusted: 2 Blitz targets BotBowl wouldn't offer
 (Sweltering Heat, a bad snack) must be marked unavailable, or set-up loops. The Apothecary and interceptions are now
 asked of BludBowl too (v4.21). Still fixed: skill uses (always; BotBowl's Humans have none of the skills that ask), High Kick
 (no player moved under the ball).
-Step 4 (a bigger check, 100+ matches) is next.
+## Step 4: the bigger check (done, 31 Oct 2026)
+120 matches in BotBowl against its scripted bot, sides swapping, with the Apothecary and interceptions also BludBowl's calls:
+**BludBowl won 71, drew 34, lost 15; touchdowns 123-36** (chance of either split by luck: well under 0.1%). Home 33-19-8,
+away 38-15-7. So BludBowl's edge holds on someone else's engine and rules, and is if anything bigger there than in BludBowl
+itself (48-31-21 against the ported bot).
+Adjusted to BotBowl's rules: 2 Blitz targets, and set-up placements BotBowl refused in a handful of the ~500 set-ups (60
+squares in all, often a whole set-up at once): the skipped players start in reserve. Worth a look next: probably a
+set-up asked for at a moment BludBowl reads the kicking side or squares differently (it didn't stop any match).

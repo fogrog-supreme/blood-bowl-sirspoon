@@ -46,4 +46,5 @@ https://sirspoon.github.io/BludBowl/ (served from `main`).
   (it's written for Humans, the only team BotBowl Season 3 has). v4.19 baseline: ours won 48, drew 31, lost 21, TDs 86-48.
 - No-browser runs: `node tools/headless-match.js orc human` plays a match with index.html inside jsdom (needs `npm i jsdom`),
   the base for driving the AI from other programs. BludBowl's AI as a BotBowl bot: `AI.bridge` (index.html) + `tools/bridge-server.js`
-  + `tools/botbowl/` (how to set up and run: `ai-training/botbowl-bridge.md`).
+  + `tools/botbowl/` (how to set up and run: `ai-training/botbowl-bridge.md`). Baseline in BotBowl (v4.21, 120 matches v its
+  scripted bot): won 71, drew 34, lost 15, TDs 123-36.
