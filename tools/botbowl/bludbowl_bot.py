@@ -106,7 +106,10 @@ class BludBowlBot(ProcBot):
                 players.append({'id': p.player_id, 'team': s, 'type': p.role.name, 'race': team.race, 'ma': ma, 'st': p.get_st(), 'ag': p.get_ag_target(),
                                 'pa': p.get_pa(), 'av': p.get_armor_target() if hasattr(p, 'get_armor_target') else p.get_av(),
                                 'skills': [skill_name(k) for k in p.get_skills()], 'x': x, 'y': y, 'state': st, 'used': bool(p.state.used),
-                                'maLeft': max(0, ma - p.state.moves)})
+                                'maLeft': max(0, ma - p.state.moves),
+                                'rooted': bool(getattr(p.state, 'taken_root', False)),
+                                'distracted': bool(getattr(p.state, 'bone_headed', False) or getattr(p.state, 'really_stupid', False)
+                                                   or getattr(p.state, 'hypnotized', False) or getattr(p.state, 'distracted', False))})
         cur = game.state.current_team
         carrier = game.get_ball_carrier()
         bpos = game.get_ball_position()
@@ -241,6 +244,12 @@ class BludBowlBot(ProcBot):
                 self.queue = acts[1:]
                 return acts[0]
             self.fallbacks['plan not allowed: ' + plan.get('kind', '?')] += 1
+            if os.environ.get('BB_TRACE') and acts:
+                ac = next((c for c in game.get_available_actions() if c.action_type == acts[0].action_type), None)
+                pl = game.get_player(plan.get('player'))
+                print('  plan refused', plan.get('kind'), pl.role.name if pl else None, 'up' if pl and pl.state.up else 'down', 'used' if pl and pl.state.used else '',
+                      '| offered for it:', [q.role.name for q in ac.players] if ac else 'not offered at all', '| blitz available:', game.is_blitz_available(),
+                      '| types:', sorted({c.action_type.name for c in game.get_available_actions()}), flush=True)
         return Action(ActionType.END_TURN)
 
     def plan_actions(self, game, plan):
@@ -254,6 +263,14 @@ class BludBowlBot(ProcBot):
         acts = [Action(START[kind], player=p)]
         t = game.get_player(plan['target']) if plan.get('target') else None
         r = game.get_player(plan['receiver']) if plan.get('receiver') else None
+        if kind == 'blitz' and t is None:
+            # some of BludBowl's Blitz plans pick their target at the end of the move; Season 3 declares it first: the standing
+            # opponent nearest where the move ends
+            route = plan.get('route') or []
+            end = self.sq(route[-1]) if route else p.position
+            opps = [q for q in game.get_players_on_pitch(game.get_opp_team(self.my_team)) if q.state.up]
+            if opps:
+                t = min(opps, key=lambda q: (q.position.distance(end), q.position.distance(p.position)))
         if kind == 'blitz' and t is not None:
             acts.append(Action(ActionType.SELECT_PLAYER, player=t))
         if not p.state.up:
@@ -293,6 +310,11 @@ class BludBowlBot(ProcBot):
             if self.allowed(game, a):
                 return a
         self.fallbacks['blitz target'] += 1
+        if os.environ.get('BB_TRACE'):
+            want = self.queue[0] if self.queue else None
+            offered = [(q.role.name, q.position) for c in game.get_available_actions() for q in c.players]
+            print('  blitz target refused: wanted', want.action_type.name if want else None, want.player.role.name if want and want.player else None,
+                  want.player.position if want and want.player else None, '| offered:', offered, flush=True)
         self.queue = []
         return super().blitz_target(game)
 

@@ -2,6 +2,9 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.23 (1 Nov 2026)
+- **Fixed (testing only):** the Blitzes BotBowl refused from BludBowl's AI. A player who had taken root (Take Root) or lost their tackle zones (Bone Head, Really Stupid, Hypnotic Gaze) wasn't marked as such, so a rooted Treeman kept being planned to Blitz; the decision service now takes both. And some of BludBowl's Blitz plans pick their target at the end of the move, where Season 3 declares it first: the bridge now names the standing opponent nearest where the move ends. 24 matches afterwards (Orc, Dwarf, Skaven): every answer played as given. Nothing changes in play.
+
 ## v4.22 (31 Oct 2026)
 - **Improved (testing only):** the AI's decision service (`AI.bridge`) now takes any team: it switches BludBowl to the teams' races, matches each player to BludBowl's position (by name, else the nearest characteristics) with BludBowl's own skill and trait names, and names the team-mate for a Throw Team-mate. The BotBowl bot (`tools/botbowl/`) plays Stab, Projectile Vomit, Chainsaw, Hypnotic Gaze, bombs and Throw Team-mate, and `play.py --team orc` (any Season 3 team; needs BotBowl's team-expansion version) plays a mirror match with BotBowl's squads. Fixed: a turn that ended early (a touchdown, a turnover) left its moves queued, and the next set-up tried to play them. First results, 10 matches each against BotBowl's scripted bot: Orc won 6 drew 3 lost 1, Skaven 7-1-2, Dwarf 3-6-1, Wood Elf (20) 9-8-3. Nothing changes in play.
 

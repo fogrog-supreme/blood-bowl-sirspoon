@@ -72,5 +72,6 @@ to BotBowl's actions (Kick Team-mate, Ball & Chain and the rest aren't mapped ye
 The "refused set-up placements" seen before were stale moves from a turn that ended early (fixed).
 
 First results against BotBowl's scripted bot: Orc 6-3-1, Skaven 7-1-2, Dwarf 3-6-1 (10 matches each), Wood Elf 9-8-3 (20).
-Still adjusted now and then: a Blitz plan or target BotBowl won't take (the AI is asked again with that player set aside).
+The Blitzes BotBowl wouldn't take are fixed (v4.23): rooted / distracted players are now passed across, and a Blitz plan
+without a named target declares the opponent nearest where the move ends.
 Next: the other 26 teams, and a 100+ match check per team for the ones that matter most.
