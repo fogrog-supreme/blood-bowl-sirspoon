@@ -328,6 +328,10 @@ class BludBowlBot(ProcBot):
                                                      'chooser': 'atk' if mine else 'def', 'canReroll': can_rr})
         if r.get('reroll') and can_rr:
             return Action(ActionType.USE_REROLL)
+        # Season 3 offers the re-roll and the dice together. Picking a die straight from that question skips a step BotBowl needs
+        # (with Wrestle it then fails, waiting for that decision): decline the re-roll first, and pick the die when asked next
+        if isinstance(proc, botbowl.Reroll) and any(x.action_type == ActionType.DONT_USE_REROLL for x in game.get_available_actions()):
+            return Action(ActionType.DONT_USE_REROLL)
         a = Action(SELECT[dice[r.get('index', 0)]])
         if self.allowed(game, a):
             return a
@@ -410,6 +414,15 @@ class BludBowlBot(ProcBot):
             if any(a.action_type == t for a in game.get_available_actions()):
                 return Action(t)
         return self.first_allowed(game, [a.action_type for a in game.get_available_actions()])
+
+    def act(self, game):
+        a = super().act(game)
+        if os.environ.get('BB_TRACE_BLOCK'):
+            proc = game.get_procedure()
+            if type(proc).__name__ in ('Block', 'Reroll'):
+                print('  act', type(proc).__name__, 'wrestle a/d', getattr(proc, 'waiting_wrestle_attacker', None), getattr(proc, 'waiting_wrestle_defender', None),
+                      '->', a.action_type.name if a else None, '| offered', [c.action_type.name for c in game.get_available_actions()], flush=True)
+        return a
 
     def end_game(self, game):
         pass

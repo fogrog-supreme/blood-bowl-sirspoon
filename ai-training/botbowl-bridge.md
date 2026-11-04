@@ -74,4 +74,24 @@ The "refused set-up placements" seen before were stale moves from a turn that en
 First results against BotBowl's scripted bot: Orc 6-3-1, Skaven 7-1-2, Dwarf 3-6-1 (10 matches each), Wood Elf 9-8-3 (20).
 The Blitzes BotBowl wouldn't take are fixed (v4.23): rooted / distracted players are now passed across, and a Blitz plan
 without a named target declares the opponent nearest where the move ends.
-Next: the other 26 teams, and a 100+ match check per team for the ones that matter most.
+### More teams (1-4 Nov 2026)
+Results against BotBowl's scripted bot (mirror matches with BotBowl's coverage squads; small samples, so only the overall
+picture counts):
+
+| Team | Matches | Won | Drew | Lost | TDs |
+|---|---|---|---|---|---|
+| High Elf | 16 | 8 | 6 | 2 | 13-5 |
+| Lizardmen | 6 | 5 | 1 | 0 | 8-2 |
+| Chaos Chosen | 6 | 3 | 3 | 0 | 4-0 |
+| Norse | 6 | 3 | 1 | 2 | 6-3 |
+| Amazon | 6 | 4 | 2 | 0 | 5-0 |
+| Shambling Undead | 6 | 4 | 1 | 1 | 6-3 |
+| Dark Elf | 8 | 5 | 1 | 2 | 8-3 |
+| Necromantic Horror | 8 | 4 | 3 | 1 | 6-2 |
+
+Fixed on the way: in Season 3 the re-roll question and the block dice come together, and picking a die straight from it
+skips a step BotBowl's engine needs: with Wrestle it then crashed (seen with High Elves). The bot now declines the re-roll
+first and picks the die at the next question (same die). Not ours: BotBowl's scripted bot sometimes tries an action BotBowl
+refuses on the newer teams (a Wraith as a target; ending an activation mid-pass); `play.py` swaps it for the nearest legal one
+and counts it (`SafeScripted`), and a match BotBowl's own engine fails on is counted as abandoned instead of stopping the run.
+Next: the remaining 18 teams, and a 100+ match check per team for the ones that matter most.
