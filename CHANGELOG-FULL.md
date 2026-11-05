@@ -2,6 +2,14 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.25 (5 Nov 2026)
+- **New (testing only):** `AI.bridge.nnLabel({ op, arg })` gives someone else's choice (a FUMBBL coach's, say) as an index of
+  the neural network's layout, for the position last loaded: a turn plan (player, action, square, or ending the turn), a route,
+  a set-up placement, a block die, a push or kick square, and the yes/no and player choices. With the replay viewer
+  (`FREP.parse`) and `nnRecord`, this turns FUMBBL replays into training examples, each with what BludBowl's own AI would have
+  done in that position: 288 replays (now in `ai-training/data/fumbbl-replays/`) gave 55,208 coach decisions. Nothing
+  changes in play.
+
 ## v4.24 (5 Nov 2026)
 - **New (testing only):** the AI's decision service (`AI.bridge`) can describe each of its decisions the way a neural network sees them, and let a network answer instead of the AI. `nnLayout()` gives the fixed layout (version `bludbowl-nn-v1`): the deciding team always attacks the same way, a 28x17 grid (the pitch and the crowd), a table of up to 16 players a side (state, characteristics, 110 skills), the match situation, and every choice as one number: a turn plan (player, action, square), the route before a Blitz, Foul, Hand-off or Pass, each set-up placement, re-rolls, block dice, pushes, follow-ups, kick, touchback, Apothecary and interception (115,696 in all), with the legal ones listed alongside the success chance and block dice for each. `nnRecord()` returns the AI's answer plus each decision in that form, labelled with what the AI chose; `nnObs()` and `nnDecode()` let a network choose and turn its choice back into the AI's own answer, so it plays through the same bridge. The bridge also takes the score. `tools/bridge-server.js` records when asked (`record: true`); the BotBowl bot (`tools/botbowl/bludbowl_bot.py`) sends every question through one `ask()`, which can record or be answered by a network. First network trained on 4,000 recorded BotBowl matches (all 30 teams), against BotBowl's scripted bot over 112 matches: won 55, drew 30, lost 27, touchdowns 91-50 (BludBowl's own AI on the same matches: 64-25-23, 108-53). Nothing changes in play.
 

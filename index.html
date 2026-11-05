@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.24</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.25</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -27297,12 +27297,33 @@
                         if (op === 'intercept') return index === simple('intercept_none') ? null : ext(own[index - OFF.pick]);
                         return null;
                     }
+                    // someone else's choice (a FUMBBL coach's, say) as an index of the layout, for the position last loaded: a = { player, kind,
+                    // x, y } for 'turn' (kind 'end' to end the turn), { x, y } for 'route' / 'push' / 'kick', { player, x, y } for 'setup',
+                    // { index } or { reroll: true } for 'dice', { yes } for 'reroll' / 'follow' / 'apothecary', { player } for 'touchback' /
+                    // 'intercept' (none: null). Returns null if it can't be expressed (a player not in the table, a kind the network doesn't have).
+                    function label(op, a) {
+                        me = lastMe;
+                        const { own } = sides(), slot = id => own.indexOf(P(id));
+                        if (op === 'turn') {
+                            if (a.kind === 'end') return OFF.end;
+                            const k = KINDS.indexOf(a.kind), sl = slot(a.player);
+                            return k < 0 || sl < 0 || a.x == null ? null : OFF.turn + (sl * KINDS.length + k) * SQ + sqOf(a.x, a.y);
+                        }
+                        if (op === 'route' || op === 'push' || op === 'kick') return a.x == null ? null : OFF[op] + sqOf(a.x, a.y);
+                        if (op === 'setup') { const sl = slot(a.player); return sl < 0 ? null : OFF.setup + sl * SQ + sqOf(a.x, a.y); }
+                        if (op === 'dice') return a.reroll ? simple('dice_reroll') : a.index >= 0 && a.index <= 2 ? simple('dice_' + a.index) : null;
+                        if (op === 'reroll') return simple(a.yes ? 'reroll_yes' : 'reroll_no');
+                        if (op === 'follow') return simple(a.yes ? 'follow_yes' : 'follow_no');
+                        if (op === 'apothecary') return simple(a.yes ? 'apo_yes' : 'apo_no');
+                        if (op === 'touchback' || op === 'intercept') { if (a.player == null) return op === 'intercept' ? simple('intercept_none') : null; const sl = slot(a.player); return sl < 0 ? null : OFF.pick + sl; }
+                        return null;
+                    }
                     const stats = { outside: {} };
-                    return { layout, record, obs, decode, stats, VERSION };
+                    return { layout, record, obs, decode, label, stats, VERSION };
                 })();
                 return { load, turn, reroll, dice, push, follow, setup, kick, touchback: touchbackTo, apothecary, intercept,
                     nnLayout: () => nn.layout(), nnRecord: (op, arg) => nn.record(op, arg, a => (op === 'touchback' ? touchbackTo : { turn, reroll, dice, push, follow, setup, kick, apothecary, intercept }[op])(a)),
-                    nnObs: (o) => nn.obs(o.op, o.arg), nnDecode: (o) => nn.decode(o.op, o.arg, o.index, o.route), nnStats: () => nn.stats };
+                    nnObs: (o) => nn.obs(o.op, o.arg), nnDecode: (o) => nn.decode(o.op, o.arg, o.index, o.route), nnLabel: (o) => nn.label(o.op, o.arg), nnStats: () => nn.stats };
             })();
             // the End Turn button shows when the computer is playing
             let lastLabel = null;

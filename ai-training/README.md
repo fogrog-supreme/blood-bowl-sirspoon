@@ -776,3 +776,46 @@ line-up: the Bomma and the Fungus Flinga). "At whom" is what was in the blast (t
   40%); always the last action. Unlike the coaches (their ball 76%), most come while we have the ball (74%).
 - Against v3.71 (Goblins and Snotlings, 48 matches): 48-44 touchdowns, 16-14 wins, casualties 168-154. Level; released
   because the teams now play to type without doing worse.
+
+## Coaches and the AI in the same positions (Nov 2026, v4.25)
+Not just per-match totals: every decision of strong FUMBBL coaches, with what BludBowl's AI would have done in exactly that
+position. The replays (`data/fumbbl-replays/`, now 288: the 200 best-rated matches of the top-coaches list, 57 more to even out
+the teams, and 31 found for the thinnest teams with `fumbbl-race-replays.py`) are read by the replay viewer (`FREP.parse`), each
+position is loaded into the AI's decision service and answered by the AI (`AI.bridge.nnRecord`), and the coach's own choice is
+put in the same form (`nnLabel`). The sides used: the stronger coach in every match, and in the searched-for matches every side
+rated 1500+. The tools are in the neural-network pipeline on the owner's PC (`nn/fumbbl_decisions.js`, `fumbbl.py`,
+`fumbbl_report.py`, `fumbbl_blocks.js` / `.py`: see `HANDOVER.md`). 55,208 decisions: 38,821 turn plans, 11,677 block-dice
+choices, 4,710 routes.
+
+| | coaches | BludBowl's AI, same positions |
+|---|---|---|
+| first action of a turn: move / block / blitz | 73 / 18 / 8% | 48 / 40 / 7% |
+| decisions that are a Blitz | 10.7% | 5.9% |
+| ending the turn with players unused | 6.3% | 2.0% |
+| blocks on 1 die / defender picks | 10% / 2% | 1% / 0% |
+| same choice as the coach: turn plans (exactly / player and action / player) | | 13 / 25 / 30% |
+| same block die as the coach | | 80% |
+
+- Turn order: coaches move players in first (assists, screens) and block after; the AI blocks first with whoever is already
+  next to an opponent. Where the coach blitzed, the AI would have blitzed only 17% of the time (moved 51%).
+- Where the coach ended the turn, the AI would still have moved someone (72%).
+
+### The coaches' 1-die blocks (`fumbbl_blocks`: 12,777 blocks, re-rolls from FUMBBL's raw reports)
+
+| | 3 dice | 2 dice | 1 die | defender picks |
+|---|---|---|---|---|
+| share of blocks | 14% | 76% | 9% | 1% |
+| the last action of the turn | 9% | 12% | 39% | 49% |
+| in the first half of the turn's activations | 53% | 46% | 15% | 15% |
+| target is their carrier | 4% | 4% | 12% | 26% |
+| team re-roll on the block dice | 3% | 5% | 11% | 11% |
+| blocker with Block on a target with neither Block nor Dodge | 7% | 28% | 36% | 41% |
+| target down / blocker down | 69 / 4% | 67 / 5% | 51 / 19% | 32 / 31% |
+
+- Both mopping up and key plays: mostly late in the turn (39% the very last action), and three times as often on their carrier
+  as other blocks. On the carrier, a 1-die block took the ball away by the end of the turn 49% of the time. Team re-rolls on
+  1-die blocks: 20% of those around the ball, 9% of end-of-turn ones away from it.
+- Chosen with care: with Block against a target with neither Block nor Dodge they knock the target down 54% of the time and the
+  blocker only 9%.
+- Next (the owner's idea): make these part of the AI's turn plan, with team-mates moved in first so that a 1-die block becomes a
+  2-dice one, or at least isn't a worse one (no assists for the defender).

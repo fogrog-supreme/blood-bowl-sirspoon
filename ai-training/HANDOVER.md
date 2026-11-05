@@ -98,3 +98,17 @@ mean faster recording.
   then self-play.
 - Gotcha: on this Windows PyTorch build, a CPU copy of the network in each of 14 processes was ~40x slower per decision than
   one alone: serve the network from one GPU process instead.
+
+## Since then (5 Nov 2026, from the PC session)
+- More data and a better network: 12,000 recorded BotBowl games (`bb_001`-`bb_003`). `bb_v3b` (decisions) won 116, drew 69, lost
+  39 against BotBowl's scripted bot over 224 matches; BludBowl's own AI on the same matches 123-58-43.
+- An outcome predictor (who wins from a position) on top: `bb_v3c`. It must be trained on games the decision network never
+  trained on, or it memorises them (every position of a game shares its result): trained on `bb_003` only it calls 66% of
+  results, 85% in the last four turns, and its win chances match reality.
+- A "bash" dial (a bonus on block and blitz plans) adds mostly 1-die blocks: it helped a weaker network, not `bb_v3b`.
+- FUMBBL: 288 replays turned into 55,208 coach decisions with the AI's answer in each position (`ai-training/README.md`, "Coaches
+  and the AI in the same positions"). Pipeline: `nn/fumbbl_decisions.js` (index.html in jsdom: `FREP.parse`, then `AI.bridge`'s
+  `nnRecord` / `nnLabel`), `nn/fumbbl.py`, `nn/fumbbl_report.py`, `nn/fumbbl_blocks.js` / `.py`.
+- A live dashboard for recording, training and evaluation: `python nn/dashboard.py` (http://localhost:8765).
+- Gotchas: Windows can't replace a file another process is reading (the dashboard's progress file crashed a training run: now
+  retried); the training data cache (`nn/data/cache/`) is keyed by full paths.

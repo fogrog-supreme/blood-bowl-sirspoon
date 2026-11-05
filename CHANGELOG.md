@@ -2,6 +2,9 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.25 (5 Nov 2026)
+- Behind the scenes: the AI's decision service can describe a FUMBBL coach's choice for the neural network. Nothing changes in play.
+
 ## v4.24 (5 Nov 2026)
 - Behind the scenes: the AI's decision service can describe each decision for a neural network, and let one answer. Nothing changes in play.
 
