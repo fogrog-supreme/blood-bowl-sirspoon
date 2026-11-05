@@ -833,3 +833,24 @@ the AI without, 12 teams:
   144 matches: won 47, drew 47, lost 50, touchdowns 96-100, turnovers 608-616 (the extra Turnovers gone), casualties 203-205;
   1-die blocks 3.1 v 2.0 a match, blocks 37.3 v 36.8. Level, and released as the AI now plays closer to the coaches (1-die
   blocks 5.1 a match). Starting rosters on both sides: with developed teams (more Block) the good trades come up more often.
+
+### Where they choose differently, by situation (`nn/fumbbl_explore.py`: an explorer page with example boards)
+Of 38,821 turn decisions: the same choice 13%; both move but a different player (turn order) 25%; the same player to a
+different square 11%. The commonest different choices, and where they are over-represented against all decisions:
+
+| the coach / the AI | share | where, more often than usual |
+|---|---|---|
+| moves / blocks | 15% | the first action of the turn 21% (all 13%), early in the turn 56% (47%) |
+| blitzes / moves | 5.5% | their ball 65% (36%) |
+| ends the turn / moves | 4.5% | late in the turn 80% (40%), their ball 48% (36%) |
+| blocks / moves | 4% | their ball 55% (36%) |
+| moves / blitzes | 4% | our ball 77% (42%) |
+| blitzes / blocks | 3% | early in the turn 59% (47%), a loose ball 29% (22%) |
+| moves / goes for the ball | 3% | a loose ball (all of them), turns 7-8 31% (19%) |
+| fouls / moves | 1% | late in the turn 80% (40%), our ball 65% (42%) |
+
+- On defence (their ball) the coaches hit: they Blitz and block where the AI repositions (screens, markers), and they stop
+  earlier, leaving players where they stand rather than moving everyone.
+- On offence (our ball) it's the other way round: the AI blitzes where the coaches just move (the cage, support).
+- A loose ball late in a half: the AI goes for it where the coaches don't (often blocking or screening first).
+- Fouls: when the coaches have the ball, at the end of the turn.
