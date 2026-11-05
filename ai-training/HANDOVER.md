@@ -84,3 +84,17 @@ mean faster recording.
 - BotBowl's scripted bot occasionally tries an action its engine refuses on newer teams: `play.py`'s `SafeScripted` swaps
   it for a legal one and counts it.
 - Killing processes by name with `pkill -f` can match your own shell command line: use the PIDs.
+
+## Where it stands (5 Nov 2026, from the PC session)
+- The network now uses **BludBowl's own decision format**, built by index.html (`AI.bridge`'s `nn` block, v4.24; see
+  `botbowl-bridge.md`), not BotBowl's Human-only training interface: the same network plays in BotBowl through the bridge
+  (any of the 30 teams) and can later run in the game itself.
+- Pipeline on the PC (`E:\python\projects\BloodbowlAI_312\nn`, not in this repo): `record.py` (BludBowl's AI in BotBowl,
+  ~5,000 games/h with 14 workers), `train.py` (GPU), `netbot.py` (the network as a BotBowl bot through the bridge; one shared
+  GPU process serves all game workers), `evaluate.py`. Its README has commands and results.
+- First result (`bb_v1`, 4,000 recorded games): 76% held-out agreement with BludBowl's AI; v BotBowl's scripted bot over 112
+  matches won 55, drew 30, lost 27 (BludBowl's own AI on the same matches 64-25-23); v BludBowl's AI 28-32-52.
+- Next: an outcome predictor (who wins from here), then FUMBBL replays (learn only from the top-rated coach's decisions),
+  then self-play.
+- Gotcha: on this Windows PyTorch build, a CPU copy of the network in each of 14 processes was ~40x slower per decision than
+  one alone: serve the network from one GPU process instead.

@@ -45,12 +45,16 @@ class Bridge:
         first = json.loads(self.proc.stdout.readline())
         assert first.get('ready'), first
 
-    def ask(self, op, desc=None, arg=None):
-        self.proc.stdin.write(json.dumps({'op': op, 'desc': desc, 'arg': arg}) + '\n')
+    def ask(self, op, desc=None, arg=None, record=False):
+        q = {'op': op, 'desc': desc, 'arg': arg}
+        if record:
+            q['record'] = True
+        self.proc.stdin.write(json.dumps(q) + '\n')
         self.proc.stdin.flush()
         r = json.loads(self.proc.stdout.readline())
         if not r.get('ok'):
             raise RuntimeError('BludBowl AI: ' + r.get('error', '?'))
+        self.last_nn = r.get('nn')   # (with record: each decision as the neural network sees it, labelled with the AI's answer)
         return r.get('result')
 
     def close(self):
@@ -74,12 +78,22 @@ def bridge():
 class BludBowlBot(ProcBot):
     fallbacks = collections.Counter()   # (shared by all instances: why BludBowl's answer couldn't be played as it was)
 
+    recorder = None   # set to a function(samples) to record BludBowl's decisions for the neural network (ai-training/nn)
+
     def __init__(self, name):
         super().__init__(name)
         self.my_team = None
         self.queue = []          # the rest of the current activation's actions
         self.tried = set()       # players already asked to act this turn
         self.turn_key = None
+
+    def ask(self, op, desc=None, arg=None):
+        """One question to BludBowl's AI (a subclass can answer differently: the neural network, ai-training/nn)."""
+        b = bridge()
+        r = b.ask(op, desc, arg, record=self.recorder is not None)
+        if self.recorder is not None and b.last_nn:
+            self.recorder(b.last_nn)
+        return r
 
     # ---- describing the BotBowl game as a BludBowl position ----
     def side(self, game, team):
@@ -129,10 +143,12 @@ class BludBowlBot(ProcBot):
         except Exception:
             pass
         races = [None, None]
+        score = [0, 0]
         for t in teams:
             races[sides[t.team_id]] = t.race
+            score[sides[t.team_id]] = t.state.score
         return {'races': races, 'me': sides[me.team_id], 'active': sides[cur.team_id] if cur is not None else sides[me.team_id], 'half': game.state.half, 'turn': turn, 'rr': rr, 'rrUsed': False,
-                'used': used, 'weather': WEATHER.get(game.get_weather().name, 'perfect'), 'ball': ball, 'players': players, 'kick': kick,
+                'used': used, 'weather': WEATHER.get(game.get_weather().name, 'perfect'), 'ball': ball, 'players': players, 'kick': kick, 'score': score,
                 'tried': sorted(self.tried)}
 
     @staticmethod
@@ -180,7 +196,7 @@ class BludBowlBot(ProcBot):
         if getattr(self, 'setup_asked', None) == (game.state.half, self.my_team.state.turn, game.state.home_team.state.score + game.state.away_team.state.score):
             return Action(ActionType.END_SETUP)   # (already placed once for this kick-off: done)
         self.setup_asked = (game.state.half, self.my_team.state.turn, game.state.home_team.state.score + game.state.away_team.state.score)
-        spots = bridge().ask('setup', self.describe(game), self.side(game, self.my_team))
+        spots = self.ask('setup', self.describe(game), self.side(game, self.my_team))
         acts = [Action(ActionType.PLACE_PLAYER, player=p, position=None) for p in self.my_team.players if p.position is not None]
         for s in spots or []:
             p = game.get_player(s['id'])
@@ -194,7 +210,7 @@ class BludBowlBot(ProcBot):
         return Action(ActionType.END_SETUP)
 
     def place_ball(self, game):
-        t = bridge().ask('kick', self.describe(game))
+        t = self.ask('kick', self.describe(game))
         a = Action(ActionType.PLACE_BALL, position=self.sq(t)) if t else None
         if self.allowed(game, a):
             return a
@@ -205,7 +221,7 @@ class BludBowlBot(ProcBot):
         return Action(ActionType.SELECT_NONE)
 
     def touchback(self, game):
-        pid = bridge().ask('touchback', self.describe(game))
+        pid = self.ask('touchback', self.describe(game))
         p = game.get_player(pid) if pid else None
         a = Action(ActionType.SELECT_PLAYER, player=p) if p else None
         if self.allowed(game, a):
@@ -234,7 +250,7 @@ class BludBowlBot(ProcBot):
             if self.allowed(game, a):
                 return a
         for _ in range(12):   # (a plan BotBowl won't take: that player is set aside and the AI asked again)
-            plan = bridge().ask('turn', self.describe(game))
+            plan = self.ask('turn', self.describe(game))
             if not plan or plan.get('kind') == 'end':
                 return Action(ActionType.END_TURN)
             acts = self.plan_actions(game, plan)
@@ -324,7 +340,7 @@ class BludBowlBot(ProcBot):
         dice = [FACE[d.get_value()] for d in ctx.roll.dice]
         mine = ctx.favor == ctx.attacker.team
         can_rr = any(a.action_type == ActionType.USE_REROLL for a in game.get_available_actions())
-        r = bridge().ask('dice', self.describe(game), {'atk': ctx.attacker.player_id, 'def': ctx.defender.player_id, 'dice': dice,
+        r = self.ask('dice', self.describe(game), {'atk': ctx.attacker.player_id, 'def': ctx.defender.player_id, 'dice': dice,
                                                      'chooser': 'atk' if mine else 'def', 'canReroll': can_rr})
         if r.get('reroll') and can_rr:
             return Action(ActionType.USE_REROLL)
@@ -349,14 +365,14 @@ class BludBowlBot(ProcBot):
         player = getattr(ctx, 'player', None) or getattr(proc, 'player', None)
         roll = getattr(ctx, 'roll', None)
         target = getattr(roll, 'target', 4) if roll is not None else 4
-        if kind and player is not None and bridge().ask('reroll', self.describe(game), {'type': kind, 'player': player.player_id, 'target': target}):
+        if kind and player is not None and self.ask('reroll', self.describe(game), {'type': kind, 'player': player.player_id, 'target': target}):
             return Action(ActionType.USE_REROLL)
         return Action(ActionType.DONT_USE_REROLL)
 
     def push(self, game):
         proc = game.get_procedure()
         squares = game.get_available_actions()[0].positions
-        i = bridge().ask('push', self.describe(game), {'atk': proc.pusher.player_id, 'def': proc.player.player_id, 'pushed': proc.player.player_id,
+        i = self.ask('push', self.describe(game), {'atk': proc.pusher.player_id, 'def': proc.player.player_id, 'pushed': proc.player.player_id,
                                                        'squares': [{'x': s.x - 1, 'y': s.y - 1} for s in squares]})
         return Action(ActionType.PUSH, position=squares[i if i is not None and i < len(squares) else 0])
 
@@ -367,21 +383,21 @@ class BludBowlBot(ProcBot):
         vacated = next((s for s in squares if s != here), None)
         if vacated is None:
             return Action(ActionType.FOLLOW_UP, position=here)
-        go = bridge().ask('follow', self.describe(game), {'atk': proc.attacker.player_id, 'def': proc.defender.player_id, 'vacated': {'x': vacated.x - 1, 'y': vacated.y - 1}})
+        go = self.ask('follow', self.describe(game), {'atk': proc.attacker.player_id, 'def': proc.defender.player_id, 'vacated': {'x': vacated.x - 1, 'y': vacated.y - 1}})
         return Action(ActionType.FOLLOW_UP, position=vacated if go else here)
 
     def apothecary(self, game):
         proc = game.get_procedure()
         ko = 'KNOCKED' in getattr(getattr(proc, 'outcome', None), 'name', '')
         bh = 'BADLY_HURT' in getattr(getattr(proc, 'casualty_first', None), 'name', '')
-        use = bridge().ask('apothecary', self.describe(game), {'player': proc.player.player_id, 'kind': 'ko' if ko else 'cas', 'roll': 5 if bh else 12})
+        use = self.ask('apothecary', self.describe(game), {'player': proc.player.player_id, 'kind': 'ko' if ko else 'cas', 'roll': 5 if bh else 12})
         return Action(ActionType.USE_APOTHECARY if use else ActionType.DONT_USE_APOTHECARY)
 
     def interception(self, game):
         offered = [p for ac in game.get_available_actions() if ac.action_type == ActionType.SELECT_PLAYER for p in ac.players]
         if not offered:
             return Action(ActionType.SELECT_NONE)
-        pid = bridge().ask('intercept', self.describe(game), {'players': [p.player_id for p in offered]})
+        pid = self.ask('intercept', self.describe(game), {'players': [p.player_id for p in offered]})
         p = next((q for q in offered if q.player_id == pid), None)
         return Action(ActionType.SELECT_PLAYER, player=p) if p is not None else Action(ActionType.SELECT_NONE)
 

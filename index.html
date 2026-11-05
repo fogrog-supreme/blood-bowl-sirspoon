@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.23</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.24</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -26904,6 +26904,7 @@
             // returns its answer as plain data. Taps the AI would make are caught (handleGridClick, button clicks), not carried out.
             const bridge = (() => {
                 let idOf = new Map(), extOf = new Map();   // the outside ids <-> ours
+                let lastMe = 0;   // the team the last position was described for (whose decisions are asked)
                 const P = ext => getPlayerById(idOf.get(String(ext)));
                 const ext = p => (p ? extOf.get(p.id) : null);
                 const blank = ['hasActed', 'hasBlocked', 'isDown', 'isStunned', 'isKO', 'isCasualty', 'isReserve', 'isEjected', 'isFading', 'isDistracted', 'stunnedThisTurn', 'pendingAct'];
@@ -26952,6 +26953,8 @@
                         return p;
                     });
                     state.activeTeam = d.active != null ? d.active : d.me; state.half = d.half || 1;
+                    lastMe = d.me != null ? d.me : state.activeTeam;
+                    if (Array.isArray(d.score)) { state.score[0] = d.score[0] || 0; state.score[1] = d.score[1] || 0; }
                     state.turn = [d.turn ? d.turn[0] : 1, d.turn ? d.turn[1] : 1]; state.rr = [d.rr ? d.rr[0] : 0, d.rr ? d.rr[1] : 0];
                     state.teamRRUsedThisTurn = !!d.rrUsed;
                     const u = d.used || {}; state.blitzUsed = !!u.blitz; state.passUsed = !!u.pass; state.handoffUsed = !!u.handoff; state.foulUsed = !!u.foul; state.ttmUsed = !!u.ttm;
@@ -27044,7 +27047,262 @@
                     const c = caught(() => interception()); state.interceptors = null;
                     const t = c.taps[0], q = t && getPlayer(t.x, t.y); return q ? ext(q) : null;
                 }
-                return { load, turn, reroll, dice, push, follow, setup, kick, touchback: touchbackTo, apothecary, intercept };
+                // ---- the neural network's view (ai-training/nn): a position and one decision as fixed-size arrays, the same here and in
+                // BotBowl (through this bridge). The deciding team always scores at the right-hand end (team 1's positions are mirrored).
+                // Grid: 28 x 17, the pitch plus a one-square border (the crowd). Change NN_VERSION whenever any list or layout below changes.
+                const nn = (() => {
+                    const VERSION = 'bludbowl-nn-v1';
+                    const W = 28, H = 17, SQ = W * H, SLOTS = 16;
+                    const SKL = ["Accurate", "Always Hungry", "Animal Savagery", "Animosity", "Arm Bar", "Ball & Chain", "Big Hand", "Block", "Bloodlust", "Bombardier", "Bone Head", "Brawler", "Break Tackle", "Breathe Fire", "Bullseye", "Cannoneer", "Catch", "Chainsaw", "Claws", "Cloud Burster", "Dauntless", "Decay", "Defensive", "Dirty Player", "Disturbing Presence", "Diving Catch", "Diving Tackle", "Dodge", "Drunkard", "Dump-off", "Extra Arms", "Eye Gouge", "Fend", "Foul Appearance", "Frenzy", "Fumblerooski", "Give and Go", "Grab", "Guard", "Hail Mary Pass", "Hatred", "Hit and Run", "Horns", "Hypnotic Gaze", "Insignificant", "Iron Hard Skin", "Juggernaut", "Jump Up", "Kick", "Kick Team-mate", "Leader", "Leap", "Lethal Flight", "Lone Fouler", "Loner", "Masters of Undeath", "Mighty Blow", "Monstrous Mouth", "Multiple Block", "My Ball", "Nerves of Steel", "No Ball", "On the Ball", "Pass", "Pick-me-up", "Pile Driver", "Plague Ridden", "Pogo", "Prehensile Tail", "Pro", "Projectile Vomit", "Punt", "Put the Boot In", "Quick Foul", "Really Stupid", "Regeneration", "Right Stuff", "Saboteur", "Safe Pair of Hands", "Safe Pass", "Secret Weapon", "Shadowing", "Sidestep", "Sneaky Git", "Sprint", "Stab", "Stand Firm", "Steady Footing", "Strip Ball", "Strong Arm", "Stunty", "Sure Feet", "Sure Hands", "Swoop", "Tackle", "Take Root", "Taunt", "Tentacles", "Thick Skull", "Throw Team Mate", "Timmm-ber!", "Titchy", "Trickster", "Two Heads", "Unchannelled Fury", "Unsteady", "Very Long Legs", "Veteran", "Violent Innovator", "Wrestle"];
+                    const RACE_L = ["amazon", "blackorc", "bretonnian", "chaoschosen", "chaosdwarf", "renegades", "darkelf", "dwarf", "elvenunion", "gnome", "goblin", "halfling", "highelf", "human", "imperial", "khorne", "lizardmen", "necromantic", "norse", "nurgle", "ogre", "oldworld", "orc", "undead", "skaven", "snotling", "tombkings", "underworld", "vampire", "woodelf"];
+                    const SK_INDEX = new Map(SKL.map((s, i) => [s, i]));
+                    const KINDS = ['move', 'block', 'blitz', 'pass', 'handoff', 'foul', 'secure', 'pickup', 'ttm', 'bomb', 'stab', 'vomit', 'chainsaw', 'gaze'];
+                    const ROUTED = ['blitz', 'foul', 'handoff', 'pass'];   // kinds whose move before the action is a second decision
+                    const OPS = ['turn', 'route', 'setup', 'reroll', 'dice', 'push', 'follow', 'kick', 'touchback', 'apothecary', 'intercept'];
+                    const WEATHERS = ['perfect', 'sunny', 'rain', 'blizzard', 'heat'];
+                    const ROLLS = ['DODGE', 'RUSH', 'PICKUP', 'CATCH', 'PASS', 'JUMP', 'LEAP', 'OTHER'];
+                    const PF = ['present', 'on_pitch', 'gx', 'gy', 'standing', 'prone', 'stunned', 'reserve', 'ko', 'cas', 'out', 'used', 'ma', 'st', 'ag', 'pa', 'av',
+                        'ma_left', 'rushes', 'has_ball', 'distracted', 'rooted', 'tried', 'focus', 'target', 'own'];
+                    const SIMPLE = ['reroll_no', 'reroll_yes', 'follow_no', 'follow_yes', 'apo_no', 'apo_yes', 'dice_reroll', 'dice_0', 'dice_1', 'dice_2', 'intercept_none'];
+                    const EXTRAS = ['loose_ball', 'offered'];
+                    const OFF = {}; let n = 0;
+                    [['end', 1], ['turn', SLOTS * KINDS.length * SQ], ['route', SQ], ['setup', SLOTS * SQ], ['simple', SIMPLE.length], ['push', SQ], ['kick', SQ], ['pick', SLOTS]]
+                        .forEach(([k, c]) => { OFF[k] = n; n += c; });
+                    const N_ACTIONS = n;
+                    let me = 0;
+                    const flipX = x => (me === 1 ? CFG.cols - 1 - x : x);
+                    const sqOf = (x, y) => (y + 1) * W + flipX(x) + 1;   // a pitch square (or the crowd just beyond it) -> grid square
+                    const xyOf = s => { const gx = s % W, gy = (s - gx) / W, x = gx - 1; return { x: me === 1 ? CFG.cols - 1 - x : x, y: gy - 1 }; };
+                    const skillBase = s => String(s).replace(/ *[(].*$/, '').replace(/ +[0-9][+]$/, '').trim();
+                    const oneHot = (list, v) => list.map(k => (k === v ? 1 : 0));
+                    const raceOf = t => (ROSTERS[t] && (ROSTERS[t].race || ROSTERS[t].key)) || '';
+                    const sides = () => { const own = state.players.filter(p => p.team === me).slice(0, SLOTS), opp = state.players.filter(p => p.team !== me).slice(0, SLOTS); return { own, opp }; };
+                    const at = (x, y) => state.players.find(q => onPitch(q) && q.x === x && q.y === y) || null;
+                    function layout() {   // everything the Python side needs to read and build the arrays
+                        const stat = [];   // the fixed pitch layers, as [channel, square] (channels: own half, scoring end zone, own end zone, wide zones, lines of scrimmage, crowd)
+                        const mine = me; me = 0;
+                        for (let gy = 0; gy < H; gy++) for (let gx = 0; gx < W; gx++) {
+                            const x = gx - 1, y = gy - 1, s = gy * W + gx, pitch = x >= 0 && x < CFG.cols && y >= 0 && y < CFG.rows;
+                            if (!pitch) { stat.push([5, s]); continue; }
+                            if (GEO.inHalf(0, x)) stat.push([0, s]);
+                            if (x === CFG.cols - 1) stat.push([1, s]);
+                            if (x === 0) stat.push([2, s]);
+                            if (GEO.isWide(y)) stat.push([3, s]);
+                            if (x === GEO.los(0) || x === GEO.los(1)) stat.push([4, s]);
+                        }
+                        me = mine;
+                        return { version: VERSION, W, H, slots: SLOTS, kinds: KINDS, routed: ROUTED, ops: OPS, weathers: WEATHERS, rolls: ROLLS, player_features: PF,
+                            skills: SKL, races: RACE_L, simple: SIMPLE, extras: EXTRAS, offsets: OFF, n_actions: N_ACTIONS, glob_size: globals({ op: 'turn' }).length,
+                            static_names: ['own_half', 'score_endzone', 'own_endzone', 'wide', 'scrimmage', 'crowd'], static: stat };
+                    }
+                    function playerRow(p, own, ctx) {
+                        if (!p) return { row: PF.map(() => 0), sk: [] };
+                        const on = onPitch(p);
+                        const v = { present: 1, on_pitch: on, gx: on ? flipX(p.x) + 1 : 0, gy: on ? p.y + 1 : 0, standing: on && !p.isDown, prone: on && p.isDown && !p.isStunned,
+                            stunned: on && p.isStunned, reserve: p.isReserve, ko: p.isKO, cas: p.isCasualty, out: p.isEjected || (!on && !p.isReserve && !p.isKO && !p.isCasualty),
+                            used: p.hasActed, ma: p.ma, st: p.st, ag: p.ag, pa: p.pa || 0, av: p.av, ma_left: p.remainingMA != null ? p.remainingMA : p.ma,
+                            rushes: p.rushes != null ? p.rushes : 2, has_ball: state.ball.carrierId === p.id, distracted: p.isDistracted, rooted: p.rooted,
+                            tried: tried.has(p.id), focus: ctx.focus === p, target: ctx.target === p, own };
+                        const sk = [...new Set((p.skills || []).map(s => SK_INDEX.get(skillBase(s))).filter(i => i != null))];
+                        return { row: PF.map(k => Math.max(0, Math.min(255, Math.round(+v[k] || 0)))), sk };
+                    }
+                    function globals(ctx) {
+                        const opp = other(me), k = state.kickoff || {}, d = ctx.dice || {}, faces = (d.dice || []).slice(0, 3);
+                        const roll = ctx.roll ? (ROLLS.includes(ctx.roll.type) ? ctx.roll.type : 'OTHER') : null;
+                        return [state.half >= 2 ? 1 : 0, (state.turn[me] || 0) / 8, (state.turn[opp] || 0) / 8, Math.min(8, state.rr[me] || 0) / 8, Math.min(8, state.rr[opp] || 0) / 8,
+                            state.activeTeam === me ? 1 : 0, state.teamRRUsedThisTurn ? 1 : 0, state.blitzUsed ? 1 : 0, state.passUsed ? 1 : 0, state.handoffUsed ? 1 : 0,
+                            state.foulUsed ? 1 : 0, state.ttmUsed ? 1 : 0, ...oneHot(WEATHERS, state.weather && state.weather.key || 'perfect'),
+                            k.kickingTeam === me ? 1 : 0, k.receivingTeam === me ? 1 : 0, Math.min(8, state.score[me] || 0) / 4, Math.min(8, state.score[opp] || 0) / 4, GEO.sev ? 1 : 0,
+                            ...oneHot(OPS, ctx.op), ...oneHot(KINDS, ctx.kind), ...oneHot(ROLLS, roll), ctx.roll ? (ctx.roll.target || 0) / 6 : 0,
+                            ...[0, 1, 2].flatMap(i => [1, 2, 3, 4, 5, 6].map(f => (faces[i] === f ? 1 : 0))), faces.length / 3, d.mine ? 1 : 0, d.canReroll ? 1 : 0,
+                            ctx.apo ? (ctx.apo.kind === 'ko' ? 1 : 0) : 0, ctx.apo ? (ctx.apo.roll || 0) / 16 : 0, ...oneHot(RACE_L, raceOf(me)), ...oneHot(RACE_L, raceOf(opp))];
+                    }
+                    // the position for one decision: players [32 rows of PF], skills [32 lists], glob, extras [[channel, square, value]]
+                    function observe(ctx) {
+                        const { own, opp } = sides(), rows = [], sks = [];
+                        for (let i = 0; i < SLOTS; i++) { const r = playerRow(own[i], 1, ctx); rows.push(r.row); sks.push(r.sk); }
+                        for (let i = 0; i < SLOTS; i++) { const r = playerRow(opp[i], 0, ctx); rows.push(r.row); sks.push(r.sk); }
+                        const extras = [];
+                        const b = state.ball;
+                        if (!b.carrierId && b.x >= 0 && b.x < CFG.cols && b.y >= 0 && b.y < CFG.rows) extras.push([0, sqOf(b.x, b.y), 1]);
+                        (ctx.offered || []).forEach(s => { if (s.x >= -1 && s.x <= CFG.cols && s.y >= -1 && s.y <= CFG.rows) extras.push([1, sqOf(s.x, s.y), 1]); });
+                        return { players: rows, skills: sks, glob: globals(ctx), extras };
+                    }
+                    const reachOf = p => { let ms = []; try { ms = movesFor(p) || []; } catch (e) {} return [{ x: p.x, y: p.y, prob: 100, path: [] }].concat(ms); };
+                    const adjTo = (q, reach) => reach.some(m => Math.max(Math.abs(m.x - q.x), Math.abs(m.y - q.y)) === 1);
+                    const pitchSquares = () => { const out = []; for (let y = 0; y < CFG.rows; y++) for (let x = 0; x < CFG.cols; x++) out.push({ x, y }); return out; };
+                    // legal choices, as Map(index -> [feature1, feature2]): success chance (0-1) and block dice (/3, negative if the defender picks)
+                    function turnLegal() {
+                        const out = new Map(), { own } = sides(), actors = avail(me);
+                        const opps = state.players.filter(q => q.team !== me && onPitch(q)), mates = state.players.filter(q => q.team === me && onPitch(q));
+                        const b = state.ball, loose = !b.carrierId && b.x >= 0, carrier = b.carrierId ? getPlayerById(b.carrierId) : null;
+                        out.set(OFF.end, [0, 0]);
+                        own.forEach((p, slot) => {
+                            if (!actors.includes(p)) return;
+                            const add = (kind, x, y, f1 = 0, f2 = 0) => out.set(OFF.turn + (slot * KINDS.length + KINDS.indexOf(kind)) * SQ + sqOf(x, y), [f1, f2]);
+                            const reach = reachOf(p);
+                            reach.forEach(m => add('move', m.x, m.y, (m.prob != null ? m.prob : 100) / 100));
+                            const toBall = loose ? reach.find(m => m.x === b.x && m.y === b.y) : null;
+                            if (toBall) { add('pickup', b.x, b.y, (toBall.prob != null ? toBall.prob : 100) / 100); add('secure', b.x, b.y, (toBall.prob != null ? toBall.prob : 100) / 100); }
+                            const canHit = !p.isDown || hasSk(p, 'Jump Up');
+                            opps.forEach(q => {
+                                const d1 = cheb(p, q) === 1;
+                                if (!q.isDown && d1 && canHit) { let bd = null; try { bd = blockDice(p, q); } catch (e) {} add('block', q.x, q.y, 0, bd ? (bd.chooser === me ? bd.n : -bd.n) / 3 : 0); }
+                                if (!q.isDown && !state.blitzUsed && adjTo(q, reach)) add('blitz', q.x, q.y);
+                                if (q.isDown && !state.foulUsed && adjTo(q, reach)) add('foul', q.x, q.y);
+                                if (!q.isDown && d1) [['stab', 'Stab'], ['vomit', 'Projectile Vomit'], ['chainsaw', 'Chainsaw'], ['gaze', 'Hypnotic Gaze']].forEach(([k, s]) => { if (hasSk(p, s)) add(k, q.x, q.y); });
+                            });
+                            const withBall = carrier === p || !!toBall;
+                            mates.forEach(q => {
+                                if (q === p || q.isDown) return;
+                                if (withBall && !state.handoffUsed && adjTo(q, reach)) add('handoff', q.x, q.y);
+                                if (withBall && !state.passUsed && p.pa) add('pass', q.x, q.y);
+                            });
+                            if (hasSk(p, 'Throw Team Mate') && !state.ttmUsed) pitchSquares().forEach(s => { if (cheb(p, s) <= 13 && !at(s.x, s.y)) add('ttm', s.x, s.y); });
+                            if (hasSk(p, 'Bombardier')) pitchSquares().forEach(s => { if (cheb(p, s) <= 13) add('bomb', s.x, s.y); });
+                        });
+                        return out;
+                    }
+                    function routeLegal(p, kind, t) {
+                        const out = new Map();
+                        reachOf(p).forEach(m => { if (kind === 'pass' || !t || cheb(m, t) === 1) out.set(OFF.route + sqOf(m.x, m.y), [(m.prob != null ? m.prob : 100) / 100, 0]); });
+                        return out;
+                    }
+                    function setupLegal(unplaced) {
+                        const out = new Map(), { own } = sides(), free = pitchSquares().filter(s => GEO.inHalf(me, s.x) && !at(s.x, s.y));
+                        own.forEach((p, slot) => { if (unplaced.includes(p)) free.forEach(s => out.set(OFF.setup + slot * SQ + sqOf(s.x, s.y), [0, 0])); });
+                        return out;
+                    }
+                    const simple = k => OFF.simple + SIMPLE.indexOf(k);
+                    // the context, legal choices and (given the AI's answer) the label of one decision, before any route or set-up steps
+                    function frame(op, arg) {
+                        const { own } = sides();
+                        const slotOf = p => own.indexOf(p);
+                        if (op === 'turn') return { ctx: { op }, legal: turnLegal() };
+                        if (op === 'reroll') { const p = P(arg.player); return { ctx: { op, focus: p, roll: { type: arg.type, target: arg.target } }, legal: new Map([[simple('reroll_no'), [0, 0]], [simple('reroll_yes'), [0, 0]]]) }; }
+                        if (op === 'dice') {
+                            const atk = P(arg.atk), def = P(arg.def), ds = arg.dice || [], L = new Map();
+                            ds.slice(0, 3).forEach((f, i) => L.set(simple('dice_' + i), [0, 0]));
+                            if (arg.canReroll) L.set(simple('dice_reroll'), [0, 0]);
+                            return { ctx: { op, focus: atk, target: def, dice: { dice: ds, mine: arg.chooser !== 'def', canReroll: !!arg.canReroll } }, legal: L };
+                        }
+                        if (op === 'push') { const L = new Map(); (arg.squares || []).forEach(s => L.set(OFF.push + sqOf(s.x, s.y), [0, 0])); return { ctx: { op, focus: P(arg.atk), target: P(arg.pushed) || P(arg.def), offered: arg.squares || [] }, legal: L }; }
+                        if (op === 'follow') return { ctx: { op, focus: P(arg.atk), target: P(arg.def), offered: arg.vacated ? [arg.vacated] : [] }, legal: new Map([[simple('follow_no'), [0, 0]], [simple('follow_yes'), [0, 0]]]) };
+                        if (op === 'kick') { const L = new Map(); pitchSquares().forEach(s => { if (!GEO.inHalf(me, s.x)) L.set(OFF.kick + sqOf(s.x, s.y), [0, 0]); }); return { ctx: { op }, legal: L }; }
+                        if (op === 'touchback') { const L = new Map(); own.forEach((p, i) => { if (onPitch(p) && !p.isDown) L.set(OFF.pick + i, [0, 0]); }); return { ctx: { op }, legal: L }; }
+                        if (op === 'apothecary') return { ctx: { op, focus: P(arg.player), apo: { kind: arg.kind, roll: arg.roll } }, legal: new Map([[simple('apo_no'), [0, 0]], [simple('apo_yes'), [0, 0]]]) };
+                        if (op === 'intercept') { const L = new Map([[simple('intercept_none'), [0, 0]]]); (arg.players || []).map(P).forEach(p => { const i = slotOf(p); if (i >= 0) L.set(OFF.pick + i, [0, 0]); }); return { ctx: { op }, legal: L }; }
+                        return null;
+                    }
+                    const pack = (ctx, legal, label) => Object.assign(observe(ctx), { op: OPS.indexOf(ctx.op), legal: [...legal].map(([i, f]) => [i, +f[0].toFixed(3), +f[1].toFixed(3)]), label });
+                    // the AI answers one decision through the bridge; returns { result, samples } (each sample one network decision, labelled)
+                    function record(op, arg, fn) {
+                        me = lastMe;
+                        if (op === 'setup') {
+                            const result = fn(arg); me = arg;
+                            const { own } = sides(), list = (result || []).map(s => ({ p: P(s.id), x: s.x, y: s.y })).filter(s => s.p && own.includes(s.p));
+                            own.forEach(p => { if (!p.isKO && !p.isCasualty && !p.isEjected) { p.isReserve = true; p.x = -9; p.y = -9; } });
+                            const unplaced = own.filter(p => p.isReserve), samples = [];
+                            list.forEach(s => {
+                                const ctx = { op: 'setup' }, legal = setupLegal(unplaced), label = OFF.setup + own.indexOf(s.p) * SQ + sqOf(s.x, s.y);
+                                if (!legal.has(label)) { stats.outside['setup'] = (stats.outside['setup'] || 0) + 1; legal.set(label, [0, 0]); }
+                                if (legal.size > 1) samples.push(pack(ctx, legal, label));
+                                s.p.isReserve = false; s.p.x = s.x; s.p.y = s.y; unplaced.splice(unplaced.indexOf(s.p), 1);
+                            });
+                            return { result, samples };
+                        }
+                        const f = frame(op, arg);
+                        if (!f) return { result: fn(arg), samples: [] };
+                        const before = observe(f.ctx);
+                        const result = fn(arg);
+                        me = lastMe;
+                        let label = null, extra = null;
+                        const { own } = sides();
+                        if (op === 'turn') {
+                            if (!result || result.kind === 'end') label = OFF.end;
+                            else {
+                                const p = P(result.player), kind = KINDS.includes(result.kind) ? result.kind : null, slot = own.indexOf(p);   // (a kind the network doesn't have, e.g. Ball & Chain: not recorded)
+                                let t = P(result.target) || P(result.receiver), sq = null;
+                                const route = result.route || [], end = route.length ? route[route.length - 1] : (p ? { x: p.x, y: p.y } : null);
+                                if (kind === 'blitz' && !t && end) { const os = state.players.filter(q => q.team !== me && onPitch(q) && !q.isDown); t = os.sort((a, c) => cheb(a, end) - cheb(c, end))[0] || null; }
+                                if (['move', 'pickup', 'secure'].includes(kind)) sq = end;
+                                else if (['ttm', 'bomb'].includes(kind)) sq = result.tx != null ? { x: result.tx, y: result.ty } : null;
+                                else sq = t ? { x: t.x, y: t.y } : null;
+                                if (kind && p && slot >= 0 && sq) {
+                                    label = OFF.turn + (slot * KINDS.length + KINDS.indexOf(kind)) * SQ + sqOf(sq.x, sq.y);
+                                    if (ROUTED.includes(kind) && end) extra = { p, kind, t, label: OFF.route + sqOf(end.x, end.y) };
+                                }
+                            }
+                        } else if (op === 'reroll') label = simple(result ? 'reroll_yes' : 'reroll_no');
+                        else if (op === 'dice') label = result && result.reroll && arg.canReroll ? simple('dice_reroll') : simple('dice_' + Math.min(2, (result && result.index) || 0));
+                        else if (op === 'push') { const s = (arg.squares || [])[result || 0]; label = s ? OFF.push + sqOf(s.x, s.y) : null; }
+                        else if (op === 'follow') label = simple(result ? 'follow_yes' : 'follow_no');
+                        else if (op === 'kick') label = result ? OFF.kick + sqOf(result.x, result.y) : null;
+                        else if (op === 'touchback') { const i = own.indexOf(P(result)); label = i >= 0 ? OFF.pick + i : null; }
+                        else if (op === 'apothecary') label = simple(result ? 'apo_yes' : 'apo_no');
+                        else if (op === 'intercept') { const i = own.indexOf(P(result)); label = result == null ? simple('intercept_none') : i >= 0 ? OFF.pick + i : null; }
+                        const samples = [];
+                        if (label != null) {
+                            if (!f.legal.has(label)) { const k = op + (op === 'turn' && result ? ':' + result.kind : ''); stats.outside[k] = (stats.outside[k] || 0) + 1; f.legal.set(label, [0, 0]); }
+                            if (f.legal.size > 1) samples.push(Object.assign(before, { op: OPS.indexOf(op), legal: [...f.legal].map(([i, v]) => [i, +v[0].toFixed(3), +v[1].toFixed(3)]), label }));
+                        }
+                        if (extra) {
+                            const ctx = { op: 'route', focus: extra.p, target: extra.t, kind: extra.kind }, legal = routeLegal(extra.p, extra.kind, extra.t);
+                            if (!legal.has(extra.label)) { stats.outside['route:' + extra.kind] = (stats.outside['route:' + extra.kind] || 0) + 1; legal.set(extra.label, [0, 0]); }
+                            if (legal.size > 1) samples.push(pack(ctx, legal, extra.label));
+                        }
+                        return { result, samples };
+                    }
+                    // for the network playing: the arrays and legal choices for one decision (no answer from the AI)
+                    // a: the decision's own argument; for 'route' { player, kind, target }; for 'setup' { team, placed: [{ id, x, y }] }
+                    function obs(op, a) {
+                        me = lastMe;
+                        if (op === 'route') { const p = P(a.player), t = P(a.target); const ctx = { op, focus: p, target: t, kind: a.kind }; return pack(ctx, routeLegal(p, a.kind, t), null); }
+                        if (op === 'setup') {
+                            const { own } = sides(), placed = (a.placed || []).map(s => ({ p: P(s.id), x: s.x, y: s.y })).filter(s => s.p);
+                            own.forEach(p => { if (!p.isKO && !p.isCasualty && !p.isEjected) { p.isReserve = true; p.x = -9; p.y = -9; } });
+                            placed.forEach(s => { s.p.isReserve = false; s.p.x = s.x; s.p.y = s.y; });
+                            const unplaced = own.filter(p => p.isReserve && !p.isKO && !p.isCasualty && !p.isEjected);
+                            return Object.assign(pack({ op }, setupLegal(unplaced), null), { remaining: Math.min(MAX_ON_PITCH, placed.length + unplaced.length) - placed.length });
+                        }
+                        const f = frame(op, a);
+                        return f ? pack(f.ctx, f.legal, null) : null;
+                    }
+                    // a chosen index -> the answer in the bridge's own form (as turn(), dice()... return it). route: the route square's index, for ROUTED kinds
+                    function decode(op, a, index, route) {
+                        me = lastMe;
+                        const { own } = sides();
+                        const pathTo = (p, s) => { if (!s || (s.x === p.x && s.y === p.y)) return []; const m = reachOf(p).find(m => m.x === s.x && m.y === s.y); return m && m.path ? m.path.map(q => ({ x: q.x, y: q.y })) : []; };
+                        if (op === 'turn') {
+                            if (index === OFF.end) return { kind: 'end' };
+                            const r = index - OFF.turn, sq = r % SQ, sk = (r - sq) / SQ, kind = KINDS[sk % KINDS.length], p = own[(sk - sk % KINDS.length) / KINDS.length];
+                            if (!p) return { kind: 'end' };
+                            const s = xyOf(sq), q = at(s.x, s.y);
+                            const plan = { kind, player: ext(p), target: null, receiver: null, thrown: null, route: [], standUp: !!p.isDown };
+                            if (['move', 'pickup', 'secure'].includes(kind)) plan.route = pathTo(p, s);
+                            else if (kind === 'handoff' || kind === 'pass') plan.receiver = ext(q);
+                            else if (kind === 'ttm' || kind === 'bomb') { plan.tx = s.x; plan.ty = s.y; if (kind === 'ttm') { const g = state.players.find(m => m.team === me && onPitch(m) && !m.isDown && cheb(m, p) === 1 && hasSk(m, 'Right Stuff')); plan.thrown = ext(g); } }
+                            else plan.target = ext(q);
+                            if (ROUTED.includes(kind) && route != null) plan.route = pathTo(p, xyOf(route - OFF.route));
+                            return plan;
+                        }
+                        if (op === 'setup') { const r = index - OFF.setup, sq = r % SQ, p = own[(r - sq) / SQ], s = xyOf(sq); return p ? { id: ext(p), x: s.x, y: s.y } : null; }
+                        if (op === 'reroll') return index === simple('reroll_yes');
+                        if (op === 'dice') return index === simple('dice_reroll') ? { reroll: true, index: 0 } : { reroll: false, index: index - simple('dice_0') };
+                        if (op === 'push') { const s = xyOf(index - OFF.push); return Math.max(0, (a.squares || []).findIndex(q => q.x === s.x && q.y === s.y)); }
+                        if (op === 'follow') return index === simple('follow_yes');
+                        if (op === 'kick') return xyOf(index - OFF.kick);
+                        if (op === 'touchback') return ext(own[index - OFF.pick]);
+                        if (op === 'apothecary') return index === simple('apo_yes');
+                        if (op === 'intercept') return index === simple('intercept_none') ? null : ext(own[index - OFF.pick]);
+                        return null;
+                    }
+                    const stats = { outside: {} };
+                    return { layout, record, obs, decode, stats, VERSION };
+                })();
+                return { load, turn, reroll, dice, push, follow, setup, kick, touchback: touchbackTo, apothecary, intercept,
+                    nnLayout: () => nn.layout(), nnRecord: (op, arg) => nn.record(op, arg, a => (op === 'touchback' ? touchbackTo : { turn, reroll, dice, push, follow, setup, kick, apothecary, intercept }[op])(a)),
+                    nnObs: (o) => nn.obs(o.op, o.arg), nnDecode: (o) => nn.decode(o.op, o.arg, o.index, o.route), nnStats: () => nn.stats };
             })();
             // the End Turn button shows when the computer is playing
             let lastLabel = null;

@@ -95,3 +95,12 @@ first and picks the die at the next question (same die). Not ours: BotBowl's scr
 refuses on the newer teams (a Wraith as a target; ending an activation mid-pass); `play.py` swaps it for the nearest legal one
 and counts it (`SafeScripted`), and a match BotBowl's own engine fails on is counted as abandoned instead of stopping the run.
 Next: the remaining 18 teams, and a 100+ match check per team for the ones that matter most.
+
+## The neural network's view (v4.24, 5 Nov 2026)
+`AI.bridge` also describes each decision the way a neural network sees it, and lets a network answer (the `nn` block next to
+the bridge in index.html; layout version `bludbowl-nn-v1`): `nnLayout()` (the fixed layout), `nnRecord(op, arg)` (the AI's
+answer plus each decision as arrays, labelled with that answer), `nnObs({op, arg})` (the arrays and legal choices only) and
+`nnDecode({op, arg, index, route})` (a chosen index back into the AI's own answer). `bridge-server.js` records when a request
+has `record: true`; `bludbowl_bot.py` sends every question through `BludBowlBot.ask()`, so a subclass can record or answer
+with a network. Change the layout only together with its version string: recorded data and trained networks depend on it.
+The training pipeline itself (recorder, network, training, evaluation) lives on the owner's PC: see HANDOVER.md.

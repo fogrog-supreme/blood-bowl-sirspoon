@@ -23,6 +23,11 @@ const { openGame } = require('./headless-match');
       if (q.desc) B.load(q.desc);
       const fn = q.op && q.op !== 'load' ? B[q.op] : null;
       if (q.op && q.op !== 'load' && typeof fn !== 'function') throw new Error('unknown op ' + q.op);
+      if (q.record && fn) {   // (ai-training/nn: the answer, plus each decision as the neural network sees it, labelled with the answer)
+        const rec = B.nnRecord(q.op, q.arg);
+        out({ ok: true, result: rec.result == null ? null : JSON.parse(JSON.stringify(rec.result)), nn: rec.samples });
+        return;
+      }
       const r = fn ? fn(q.arg) : null;
       out({ ok: true, result: r == null ? null : JSON.parse(JSON.stringify(r)) });
     } catch (e) { out({ ok: false, error: String(e && e.stack || e).slice(0, 600) }); }
