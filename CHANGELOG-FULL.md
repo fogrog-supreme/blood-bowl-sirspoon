@@ -2,6 +2,18 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.26 (6 Nov 2026)
+- **Improved (AI):** a bashier end to the computer's turn (`blk1`). Once everyone else has moved, a player still next to an
+  opponent throws the block if it's a good trade: at most a 20% chance of a Turnover and at least 40% of knocking the target
+  down (typically a blocker with Block on a target with neither Block nor Dodge; any 2-dice block not yet taken), the best
+  first, and not by our own ball carrier (a gap in the cage). Before that, a player with nothing better to do steps (without
+  dice) to where an assist most improves one of those blocks: a 1-die block made a 2-dice one, or a poor one a good trade.
+  From strong FUMBBL coaches, who throw most of their 1-die blocks at the end of the turn and pick them well
+  (`ai-training/README.md`, "The coaches' 1-die blocks"). Against the AI without it, over 144 matches on 12 teams: won 47,
+  drew 47, lost 50, touchdowns 96-100, turnovers 608-616, casualties 203-205 (level); 1-die blocks 3.1 a match (2.0 before),
+  blocks 37.3 (36.8). Released as it plays more like the coaches without doing worse. The end-of-turn blocks alone (without
+  the assists) cost about 20 extra Turnovers per 48 matches.
+
 ## v4.25 (5 Nov 2026)
 - **New (testing only):** `AI.bridge.nnLabel({ op, arg })` gives someone else's choice (a FUMBBL coach's, say) as an index of
   the neural network's layout, for the position last loaded: a turn plan (player, action, square, or ending the turn), a route,

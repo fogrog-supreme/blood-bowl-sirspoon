@@ -819,3 +819,17 @@ choices, 4,710 routes.
   blocker only 9%.
 - Next (the owner's idea): make these part of the AI's turn plan, with team-mates moved in first so that a 1-die block becomes a
   2-dice one, or at least isn't a worse one (no assists for the defender).
+
+### At the end of the turn (`blk1`, released in v4.26)
+In the same positions where a coach threw a 1-die block with at most one other player still to act, BludBowl's AI would have
+ended its turn 58% of the time (322 positions; blocked 5%). `blk1`: once everyone else has moved, a player still next to an
+opponent blocks if it's a good trade (Turnover chance at most `lateTurn` 0.2, target down at least `lateDown` 0.4; not next
+to our own carrier), the best first; before that, a player with nothing better to do steps (without dice) to the square where
+an assist most improves one of those blocks (`lateGain` 0.15). Tests with `tools/ai-match-jsdom.js`, the AI with it against
+the AI without, 12 teams:
+- the end-of-turn blocks alone: 1-die blocks 1.9 -> 2.9 a match; 96 matches: won 30, drew 29, lost 37, touchdowns 72-81,
+  turnovers 429-388 (a slight lean the wrong way, like `lateblk` before). Stricter (`lateDown` 0.5), 48 matches: 20-8-20, 35-33.
+- with the assists first (the owner's point: coaches put team-mates in place so the block isn't worse than it need be),
+  144 matches: won 47, drew 47, lost 50, touchdowns 96-100, turnovers 608-616 (the extra Turnovers gone), casualties 203-205;
+  1-die blocks 3.1 v 2.0 a match, blocks 37.3 v 36.8. Level, and released as the AI now plays closer to the coaches (1-die
+  blocks 5.1 a match). Starting rosters on both sides: with developed teams (more Block) the good trades come up more often.

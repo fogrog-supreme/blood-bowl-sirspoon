@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.25</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.26</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -25473,6 +25473,48 @@
                 const tx = best.m.x, ty = best.m.y;
                 return { pid: best.a.id, kind: 'move', pick: ms => ms.find(m => m.x === tx && m.y === ty && m.prob >= 100) || null };
             }
+            // (blk1) the end of the turn: who of ours will still be next to an opponent, and how good a block that is for them
+            function lateBlockers(me) {
+                const ourBall = state.ball.carrierId ? getPlayerById(state.ball.carrierId) : null;
+                return state.players.filter(p => p.team === me && onPitch(p) && !p.hasActed && !p.isDown && !p.isStunned && !p.isDistracted && !tried.has(p.id)
+                    && !(ourBall && ourBall.team === me && (ourBall.id === p.id || cheb(p, ourBall) <= 1)) && adjacentTargets(p).length);
+            }
+            function lateWorth(p, d, me) {
+                const e = blockEval(p, d);
+                const ok = e.chooser === me && e.pTurn <= AIX.p(me, 'lateTurn', 0.2) && e.pDown >= AIX.p(me, 'lateDown', 0.4);
+                return { e, ok, v: e.chooser === me ? e.pDown * (state.ball.carrierId === d.id ? 3 : 1) - e.pTurn * 1.5 : -1 };
+            }
+            // (blk1) before the drift: a player with nothing better to do steps (without dice) to where it gives the assist that
+            // most improves one of those end-of-turn blocks - a 1-die block made a 2-dice one, or a poor one made a good trade.
+            // Strong coaches move players in first and block after (ai-training/README.md, "Coaches and the AI in the same positions").
+            function lateAssist(me, movers) {
+                const blockers = lateBlockers(me);
+                if (!blockers.length) return null;
+                const pairs = [];
+                blockers.forEach(p => adjacentTargets(p).forEach(d => pairs.push({ p, d, w: lateWorth(p, d, me) })));
+                let best = null;
+                movers.forEach(a => {
+                    if (blockers.includes(a)) return;
+                    movesFor(a).forEach(m => {
+                        if (m.prob < 100 || !m.path || !m.path.length) return;
+                        if (!pairs.some(q => Math.max(Math.abs(m.x - q.d.x), Math.abs(m.y - q.d.y)) === 1)) return;
+                        const ox = a.x, oy = a.y, wasDown = a.isDown;
+                        a.x = m.x; a.y = m.y; a.isDown = false;
+                        try {
+                            pairs.forEach(q => {
+                                if (Math.max(Math.abs(m.x - q.d.x), Math.abs(m.y - q.d.y)) !== 1) return;
+                                const w1 = lateWorth(q.p, q.d, me);
+                                if (!w1.ok) return;
+                                const gain = w1.v - Math.max(q.w.ok ? q.w.v : 0, 0) - edgeRisk(m.x, m.y, me, a.id) * 0.2 - m.path.length * 0.01;
+                                if (gain >= AIX.p(me, 'lateGain', 0.15) && (!best || gain > best.gain)) best = { a, m, gain };
+                            });
+                        } finally { a.x = ox; a.y = oy; a.isDown = wasDown; }
+                    });
+                });
+                if (!best) return null;
+                const tx = best.m.x, ty = best.m.y;
+                return { pid: best.a.id, kind: 'move', pick: ms => ms.find(m => m.x === tx && m.y === ty && m.prob >= 100) || null };
+            }
             // a blitz on whoever stands in our carrier's way
             function laneBlitz(me, act, ourC) {
                 if (!ourC || state.blitzUsed) return null;
@@ -25963,10 +26005,21 @@
                     if (m || p.isDown) return { pid: p.id, kind: 'move', pick: (ms, q) => bombPosPick(ms, q) || (q.isDown ? supportPick(ms, q) : null) };
                 }
                 const order = avail(me).filter(p => !keep.has(p.id) && canReposition(p, me));
+                if (AIX.on(me, 'blk1') && !state.charge) { const la = lateAssist(me, order); if (la) return la; }
                 for (const p of order) {
                     const m = supportPick(movesFor(p), p);
                     if (m || p.isDown) return { pid: p.id, kind: 'move', pick: supportPick };
                     tried.add(p.id);
+                }
+                // (blk1) everyone else has moved: a player still next to an opponent blocks if it's a good trade - strong FUMBBL
+                // coaches throw most of their 1-die blocks here, at the end of the turn (39% are their last action), and pick them
+                // well: with Block on a target with neither Block nor Dodge they knock it down 54% of the time and go down 9%
+                // (ai-training/README.md, "The coaches' 1-die blocks"). A Turnover now only costs this player lying down. Not
+                // next to our own carrier (a gap in the cage).
+                if (AIX.on(me, 'blk1') && !state.charge) {
+                    let lb = null;
+                    lateBlockers(me).forEach(p => adjacentTargets(p).forEach(d => { const w = lateWorth(p, d, me); if (w.ok && (!lb || w.v > lb.v)) lb = { p, d, v: w.v }; }));
+                    if (lb) return { pid: lb.p.id, kind: 'block', target: lb.d.id };
                 }
                 // 11. the foul, then finally a bomb or a thrown team-mate at their ball carrier or cage
                 const fl2 = foulPlan(me, avail(me));
