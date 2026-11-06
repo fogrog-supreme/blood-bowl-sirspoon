@@ -5,8 +5,8 @@
 //
 // Options as ai-match.js (--races / --pairs, --n, --new / --old AIX switches: 'all', 'none' or a list, --newp, --oldp, --par,
 // --limit seconds a match, --out). The new AI is home in even-numbered matches and away in odd ones. Every match gets a fresh
-// Node process (the game reloads itself between matches, and a process that keeps going slows down): ~30s alone, ~100s with
-// 14 at once, so about 500 matches an hour.
+// Node process (the game reloads itself between matches, and a process that keeps going slows down): ~30s a match with 14
+// at once, so about 1,000 matches an hour.
 // Also counts each side's blocks by dice: 1-die blocks and blocks where the defender picks.
 const path = require('path'), fs = require('fs'), { spawn } = require('child_process');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
