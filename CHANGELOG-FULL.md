@@ -2,6 +2,15 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.32 (6 Nov 2026)
+- **Improved (AI):** the carrier's way forward (`lane1`). While our carrier still has to move, a team-mate's move, Blitz, foul,
+  hand-off or pass that would shorten how far he can get (the fewest squares to go over the squares he can reach at least 70%
+  safe, AIP `lanePr`) waits until after him. The owner saw it in play: a route to the end zone shut by the support stepping in
+  round the carrier first. Against v4.31: 288 matches, touchdowns 240-232, won 105, drew 94, lost 89; against BotBowl's bot
+  (Humans, 96 matches) won 55, drew 30, lost 11, touchdowns 102-32 (v4.31 over 288: 58% won, +0.66 touchdowns a match).
+  Tried with it and dropped: free players screening the carrier's stopping square before assists and Blitzes (`scr2`): free
+  paths 0.80 v 0.87 at the end of the turn, and with `lane1` level against v4.31 (touchdowns 237-237, won 99, lost 106).
+
 ## v4.31 (6 Nov 2026)
 - **Improved (AI):** three changes that make the AI play more like strong FUMBBL coaches, released together:
   - the carrier's screen (`scr1`): once the carrier has moved, a spare player steps (without dice) to wherever it cuts the most

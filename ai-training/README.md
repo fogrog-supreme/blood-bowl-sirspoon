@@ -1049,3 +1049,9 @@ recorded for the losses):
   its players were used earlier in the turn, not from players left idle.
 - A safer stopping square for the carrier (`dangerW` 2 and 3, was 1.3) didn't cut the free paths (0.96, 0.93 v 0.87 at the end of
   the turn) and was level in 288 matches each (won 92-90, 97-97). Left at 1.3.
+- `scr2` (free players screen the carrier's stopping square first, before assists and Blitzes; the carrier then held to that
+  square): it changed about 20 choices a match but free paths only 0.87 -> 0.80; with `lane1`, level against v4.31 (touchdowns
+  237-237, won 99, drew 83, lost 106). Dropped.
+- `lane1` (released in v4.32): while our carrier still has to move, a team-mate's move that would shorten his way forward waits
+  until after him (the owner's observation in play). 288 matches against v4.31: touchdowns 240-232, won 105, drew 94, lost 89;
+  against BotBowl's bot 55-30-11, touchdowns 102-32.

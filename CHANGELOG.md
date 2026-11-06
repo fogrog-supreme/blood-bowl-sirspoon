@@ -2,6 +2,10 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.32 (6 Nov 2026)
+- The computer's team-mates no longer step into its ball carrier's way before he has moved: they wait, so he can still take the
+  open route forward.
+
 ## v4.31 (6 Nov 2026)
 - The computer protects its ball carrier with a screen further out, not just a crowd round him, Blitzes more often, and picks
   its Blitz targets more like strong human coaches (players in its carrier's way, or tying up its own players).

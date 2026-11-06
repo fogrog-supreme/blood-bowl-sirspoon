@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.31</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.32</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -25705,8 +25705,36 @@
                 }
                 return 'risky';
             }
+            // (lane1) how far forward our carrier (still to move) could get: the fewest squares to go over the squares he can reach
+            // at least lanePr (70%) safe
+            function carrierReach(c) {
+                let best = toGo(c.x, c.team);
+                (movesFor0(c) || []).forEach(m => { if (m.prob >= AIX.p(c.team, 'lanePr', 70)) best = Math.min(best, toGo(m.x, c.team)); });
+                return best;
+            }
+            // does this plan (a team-mate moving, before our carrier has moved) shorten his way forward?
+            function cutsLane(me, pl) {
+                if (!pl || pl.pid == null || !['move', 'blitz', 'foul', 'handoff', 'pass'].includes(pl.kind)) return false;
+                const c = state.ball.carrierId ? getPlayerById(state.ball.carrierId) : null;
+                if (!c || c.team !== me || !onPitch(c) || c.isDown || c.hasActed || pl.pid === c.id || tried.has(c.id) || state.charge) return false;
+                const p = getPlayerById(pl.pid); if (!p || !onPitch(p)) return false;
+                let m = null; try { m = pl.pick ? pl.pick(movesFor(p), p) : null; } catch (e) { return false; }
+                if (!m || (m.x === p.x && m.y === p.y)) return false;
+                const before = carrierReach(c), ox = p.x, oy = p.y, down = p.isDown;
+                p.x = m.x; p.y = m.y; p.isDown = false;
+                let after = before; try { after = carrierReach(c); } finally { p.x = ox; p.y = oy; p.isDown = down; }
+                return after > before;
+            }
             function choose() {
-                const first = choose0(), me = state.activeTeam;
+                let first = choose0();
+                const me = state.activeTeam;
+                // (lane1) a team-mate moving in round our carrier before he has moved can cut off his way forward (the owner has seen
+                // it: a route to the end zone shut by the support stepping in first): that move waits until after him
+                if (AIX.on(me, 'lane1') && cutsLane(me, first)) {
+                    const added = [];
+                    try { for (let i = 0; i < 4 && first && cutsLane(me, first); i++) { tried.add(first.pid); added.push(first.pid); moveMemo = new Map(); first = choose0(); } }
+                    finally { added.forEach(id => tried.delete(id)); moveMemo = new Map(); }
+                }
                 if (!first || first.pid == null || !AIX.on(me, 'tplan') || state.turn[me] >= TURNS || planRisk(first) !== 'risky') return first;
                 const stall = state.aiStalling, carrier = state.ball.carrierId ? getPlayerById(state.ball.carrierId) : null;
                 const ourC = carrier && carrier.team === me && onPitch(carrier) ? carrier : null;
