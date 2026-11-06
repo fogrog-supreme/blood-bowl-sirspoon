@@ -1066,3 +1066,7 @@ rows the carrier could reach this turn (0.39, 9%). Released in v4.33 (CHANGELOG-
   back 0.60 v 0.66 a turn; deep in his half 0.14 v 0.42) and stands closer to him (median 2.4 v 3.4 squares in front), with fewer
   players 5+ squares back (0.9 v 2.2). Once he's in our half it has to run back more (1.87 v 1.44 a turn): it pressed up and has
   nobody deep (0.05 v 0.27). Not a retreat too early, if anything too few kept back.
+- `dep1` (released in v4.34): two safeties just beyond the carrier's run while he's in his own half. Only a small change in
+  position (chasing back once he's past 1.74 -> 1.63 a turn); 288 matches against v4.33: touchdowns 252-235, won 97, drew 97, lost
+  94; BotBowl's bot 62-22-12. In BotBowl itself (224 games, all teams, against the scripted bot): v4.33 won 134, drew 56, lost 34,
+  touchdowns 218-72.

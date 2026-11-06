@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.33</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.34</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -25098,6 +25098,13 @@
                     // owner saw it)
                     const reachY = AIX.on(me, 'flk1') ? (c.ma || 6) + 2 : 99;
                     SCREEN_ROWS.slice().filter(y => Math.abs(y - c.y) <= reachY).sort((a, b) => Math.abs(a - c.y) - Math.abs(b - c.y)).forEach(y => add(fx, y, 'screen'));
+                    // (dep1) their carrier still in his own half: two safeties just beyond his run this turn, three rows either side of
+                    // him - strong coaches keep a couple of players back (2.2 standing 5+ squares in front of him, the AI 0.9), so a
+                    // break past the front line doesn't find the whole team chasing back (ai-training/README.md, "Defending a break")
+                    if (AIX.on(me, 'dep1') && dz >= 13) {
+                        const sx = c.x + Math.min(dz - 1, (c.ma || 6) + 3) * back;
+                        [-3, 3].forEach(dy => add(sx, c.y + dy, 'safety'));
+                    }
                     // anyone of theirs already past the screen, loose behind our lines, gets marked
                     state.players.filter(q => q.team === c.team && q.id !== c.id && onPitch(q) && !q.isDown && !q.isStunned && toGo(q.x, c.team) < toGo(fx, c.team) && tzFor(q.x, q.y, c.team) === 0)
                         .sort((a, b) => toGo(a.x, c.team) - toGo(b.x, c.team)).forEach(q => add(q.x + back, q.y, 'mark'));
@@ -25117,7 +25124,7 @@
             }
             const SCREEN_ROWS_11 = [1, 4, 7, 10, 13], SCREEN_ROWS_7 = [1, 4, 6, 9];
             const SCREEN_ROWS = { slice: () => (GEO.sev ? SCREEN_ROWS_7 : SCREEN_ROWS_11).slice() };
-            const CAPS = { flank: 2, cage: 4, front: 3, runner: 3, hunt: 3, screen: 5, mark: 2, screen2: 3, deep: 1, ballguard: 3, outlet: 2 };
+            const CAPS = { flank: 2, cage: 4, front: 3, runner: 3, hunt: 3, screen: 5, mark: 2, screen2: 3, deep: 1, safety: 2, ballguard: 3, outlet: 2 };
             // formation squares already given to someone this turn: a player sent towards a square they can't reach yet
             // (it's still empty when the next player is chosen) mustn't have everyone else sent after them
             let claims = { key: '', m: new Map() };
@@ -25143,7 +25150,7 @@
                 for (const t of T) {
                     let occ = getPlayer(t.x, t.y);
                     // a screen square is near enough covered by one of ours standing right next to it
-                    if (!(occ && occ.team === me) && ['screen', 'screen2', 'mark', 'deep'].includes(t.role))
+                    if (!(occ && occ.team === me) && ['screen', 'screen2', 'mark', 'deep', 'safety'].includes(t.role))
                         occ = state.players.find(q => q.team === me && onPitch(q) && !q.isDown && !q.isStunned && !taken.has(q.id) && (!c || q.id !== c.id) && cheb(q, t) === 1) || null;
                     if (occ && occ.team === me) { used.set(t.role, (used.get(t.role) || 0) + 1); taken.add(occ.id); continue; }
                     const ck = t.x + ',' + t.y + ':' + t.role, cl = claims.m.get(ck), cp = cl != null ? getPlayerById(cl) : null;

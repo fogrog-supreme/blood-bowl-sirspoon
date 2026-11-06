@@ -2,6 +2,14 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.34 (6 Nov 2026)
+- **Improved (AI):** two safeties (`dep1`): with the other side's carrier still in his own half, two defenders go just beyond his
+  run this turn (his move plus three squares towards our end zone), three rows either side of him, straight after the screen.
+  Strong coaches keep a couple of players back there (2.2 standing 5+ squares in front of him, the AI 0.9) and chase back less
+  once he's past (1.44 defenders a turn, the AI 1.87). The change in position is small (chasing back 1.74 -> 1.63 a turn). Against
+  v4.33: 288 matches, touchdowns 252-235, won 97, drew 97, lost 94; against BotBowl's bot (Humans, 96) won 62, drew 22, lost 12,
+  touchdowns 107-34.
+
 ## v4.33 (6 Nov 2026)
 - **Improved (AI):** the defensive screen (`flk1`) only covers the rows the other side's carrier could reach this turn (his move
   and two Rushes from his row), not the whole width of the pitch: on a break down one flank the far-side screen squares sent two

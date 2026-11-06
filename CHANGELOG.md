@@ -2,6 +2,10 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.34 (6 Nov 2026)
+- On defence the computer keeps two players back while your ball carrier is still in your own half, so a break past its front line
+  doesn't find the whole team chasing back.
+
 ## v4.33 (6 Nov 2026)
 - When you break down one flank, fewer of the computer's defenders run back to the far corner: they only screen the rows your
   carrier could actually reach.
