@@ -958,3 +958,14 @@ AI moved (82%). Tried:
 - `seq1` (block order) and `fol1` (follow-ups): released in v4.30 (CHANGELOG-FULL.md). Blocks by dice a team a match, v4.30 v
   v4.29: 3 dice 5.1 v 4.7, 2 dice 32.5 v 31.7, 1 die 2.7 v 3.0.
 Still open: why the AI Blitzes in half its turns where the coaches Blitz in 80%, and what they gain by it.
+
+### More Blitzes, in full matches (not kept)
+The coaches Blitz in about 80% of their turns, the AI (v4.30) in half. In matches against v4.30, 12 teams:
+- `bz2` (on defence a player held out of the screen to Blitz after it, bar 1.5): 288 matches, touchdowns 196-217, won 95, lost 109.
+- a lower bar for the general Blitz (`bzMin` 2, was 3) and a route that may need dice if 75%+ (was 90%), without `bz2`: 288
+  matches, touchdowns 185-204, won 87, lost 100.
+- both together: 576 matches, touchdowns 427-412, won 208, lost 201, casualties caused 1014-884, blocks 43.8 v 38.3 a match,
+  Turnovers +9%.
+Blitzing as often as the coaches, with the AI's present choice of whom to Blitz, adds casualties on both sides and doesn't win
+more. Not released (the owner's call: not unless it helps). If Blitzes come back, the question is whom the coaches Blitz and why
+(`nn/data/blitz_study.md`), not how often.
