@@ -1025,3 +1025,7 @@ it. Against a different opponent, BotBowl's scripted bot (Humans only, 96 matche
 
 None worse. All three against v4.30 (mirror, 288 matches): touchdowns 233-199, won 108, drew 89, lost 91, Turnovers 1253-1329,
 blocks 43.3 v 40.4 a match - better than any of them alone. Released as v4.31 (the bar and route defaults now 2 and 75).
+- More matches (Nov 2026): v4.31 against v4.30, 864 mirror matches in all: touchdowns 685-608 (that split by luck: 3.5%), won 307,
+  drew 297, lost 260 (luck 5%), 52.7%. Against BotBowl's bot, 288 matches each: v4.31 won 168, drew 81, lost 39, touchdowns 290-101;
+  v4.30 won 171, drew 68, lost 49, touchdowns 312-123 - the same touchdown margin (+0.66 a match each), v4.31 with more Turnovers
+  (1114 v 907) and casualties (508 v 412). Better head to head; level against the bot.
