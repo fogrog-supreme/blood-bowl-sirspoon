@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.26</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.27</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -25775,6 +25775,29 @@
 
                 // babysit a Really Stupid player before he goes: a team-mate next to him (not Really Stupid) adds 2 to his roll
                 if (AIX.on(me, 'babysit')) { const bs = babysitPlan(me, act, carrier); if (bs) return bs; }
+                // (stand1) first, stand up a player of ours lying next to an opponent that one of our standing players can block:
+                // standing up (no dice) gives that block his assist. Strong FUMBBL coaches open 41% of their turns' moves with a
+                // stand-up in place, nearly always (95%) next to an opponent; the AI used to leave them to the end of the turn.
+                // (Standing up everyone lying next to an opponent first cost touchdowns and Turnovers: 24-36, 229-191 over 48; this
+                // version, against the AI without it: 207-165 touchdowns, won 103 drew 102 lost 83 over 288.)
+                if (AIX.on(me, 'stand1') && !state.charge) {
+                    let up = null;
+                    act.forEach(p => {
+                        if (!p.isDown || p.isStunned || (p.remainingMA < 3 && !hasSk(p, 'Jump Up'))) return;
+                        state.players.forEach(d => {
+                            if (d.team !== them || !onPitch(d) || d.isDown || d.isStunned || cheb(d, p) !== 1) return;
+                            standing.forEach(b => {
+                                if (b.id === p.id || cheb(b, d) !== 1) return;
+                                const e0 = blockEval(b, d);
+                                p.isDown = false;
+                                let e1; try { e1 = blockEval(b, d); } finally { p.isDown = true; }
+                                const gain = (e1.chooser === me ? e1.ev : -9) - (e0.chooser === me ? e0.ev : -9);
+                                if (gain > 0.5 && e1.pTurn <= 0.12 && (!up || gain > up.gain)) up = { p, gain };
+                            });
+                        });
+                    });
+                    if (up) return { pid: up.p.id, kind: 'move', pick: () => null };
+                }
                 // 3. blocks with almost no risk come first
                 const safe = blocks.find(b => b.e.pTurn < 0.05);
                 if (safe) return blockPlan(safe);

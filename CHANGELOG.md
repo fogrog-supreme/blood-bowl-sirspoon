@@ -2,6 +2,9 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.27 (6 Nov 2026)
+- The computer stands its players up first when that gives one of its blocks an assist, as good coaches do, and scores more for it.
+
 ## v4.26 (6 Nov 2026)
 - The computer hits more at the end of its turn: a player still next to an opponent blocks when it's a good trade, and team-mates step in first to give the assist.
 

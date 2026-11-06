@@ -854,3 +854,43 @@ different square 11%. The commonest different choices, and where they are over-r
 - On offence (our ball) it's the other way round: the AI blitzes where the coaches just move (the cage, support).
 - A loose ball late in a half: the AI goes for it where the coaches don't (often blocking or screening first).
 - Fouls: when the coaches have the ball, at the end of the turn.
+
+## Moving before blocking (Nov 2026: `stand1` released in v4.27)
+From the same-position comparison: the coaches' first action of a turn is a move 73% of the time (the AI's a block 40%).
+Those opening moves are 95% dice-free, end next to an opponent 71% of the time and cover 2.1 squares on average; 41% of
+them are a stand-up in place (nearly always, 95%, next to a standing opponent), and when the next action is a block or
+Blitz its target is next to where the mover went 56% of the time. Where a coach stood a player up first, the AI would have
+blocked or moved with someone else (82%). Tests (`tools/ai-match-jsdom.js`, against the AI without the switch, 12 teams):
+- `ast1`, the assist set-ups (step 5c) before the safe blocks: 40.7 v 35.1 blocks a match but won 10, drew 16, lost 22,
+  touchdowns 30-48 over 48. The early assists take players away from the cage and screens. Dropped.
+- `stand1` as a first try, everyone lying next to an opponent stood up first: won 17-13-18, touchdowns 24-36, turnovers
+  229-191 over 48 (standing up uses the player's whole activation; some would have done better later). Changed to:
+- `stand1` (released): only a player whose standing up gives one of our standing players an assist on an opponent next to
+  him (block value up half a point or more, the block then at most 12% risk). 288 matches: touchdowns 207-165 (luck 3%),
+  won 103, drew 102, lost 83, turnovers 1249-1275, casualties 427-433, blocks 38.1 v 37.4 a match.
+
+## Where the AI loses ground (Nov 2026, the outcome predictor as a judge)
+`nn/blunders.py`: every activation of BludBowl's AI in 4,000 recorded BotBowl games (`bb_003`, which the predictor's decision
+network never trained on), with the predicted result (win chance, a draw counting half) at its start and at the same side's
+next turn decision (the end of the game: the real result). One change is mostly dice; averaged over many activations of a
+kind the luck evens out, and as the predictor expects the AI's usual play, a kind with a clearly negative average costs more
+than the AI's norm. (Per single decision rather than per activation, the in-between steps - block dice, pushes, follow-ups,
+re-rolls - all come out negative together: the predictor misreads those moments, so they aren't comparable.)
+`nn/blunders_explore.py` draws random examples of each kind on boards.
+
+| activation | how often (4,000 games) | each | a game |
+|---|---|---|---|
+| a Blitz while we have the ball | 16,897 | -0.55 points | -2.3 |
+| a move with dice while they have the ball | 20,405 | -0.38 | -1.9 |
+| a Blitz as the turn's first action | 6,446 | -0.80 | -1.3 |
+| ending the turn while they have the ball | 13,489 | -0.38 | -1.3 |
+| ending the turn with only 1-4 players used | 5,442 | -0.80 | -1.1 |
+| a Blitz while the ball is loose | 4,566 | -0.91 | -1.0 |
+| a hand-off under 70% | 5,354 | -0.74 | -1.0 |
+| a foul | 5,136 | -0.59 | -0.8 |
+| (for comparison) a 2-dice / 3-dice block | 101,040 / 28,141 | +0.19 / +0.16 | |
+
+- The costliest habit, a Blitz while we have the ball, is also where the coaches differ: 77% of the "AI blitzes where the coach
+  moves" cases are with our ball. Two independent sources point at it: the next thing to try.
+- Blocks come out slightly positive and ordinary moves slightly negative: room to block more and move less.
+- Points are of win chance (a draw half): 1 point = 1% more of a win.

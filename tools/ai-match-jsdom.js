@@ -4,8 +4,9 @@
 //   node tools/ai-match-jsdom.js --races orc,human,skaven --n 4 --new all --old blk1 --par 14 [--newp '{"k":1}'] [--out r.jsonl]
 //
 // Options as ai-match.js (--races / --pairs, --n, --new / --old AIX switches: 'all', 'none' or a list, --newp, --oldp, --par,
-// --limit seconds a match, --out). The new AI is home in even-numbered matches and away in odd ones. A match takes ~25-40s
-// (a fresh page each time: the game reloads itself between matches), so 14 at once give about 1,500 matches an hour.
+// --limit seconds a match, --out). The new AI is home in even-numbered matches and away in odd ones. Every match gets a fresh
+// Node process (the game reloads itself between matches, and a process that keeps going slows down): ~30s alone, ~100s with
+// 14 at once, so about 500 matches an hour.
 // Also counts each side's blocks by dice: 1-die blocks and blocks where the defender picks.
 const path = require('path'), fs = require('fs'), { spawn } = require('child_process');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
@@ -66,11 +67,15 @@ if (process.argv.includes('--child')) {
   jobs.forEach((j, k) => { j.newHome = k % 2 === 0; j.f0 = j.newHome ? flags(NEW) : flags(OLD); j.f1 = j.newHome ? flags(OLD) : flags(NEW); j.p0 = j.newHome ? NEWP : OLDP; j.p1 = j.newHome ? OLDP : NEWP; });
   const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'aim-'));
   const results = [], t0 = Date.now(), out = OUT ? fs.createWriteStream(OUT) : null;
-  const workers = Math.min(PAR, jobs.length);
-  let finished = 0;
-  for (let w = 0; w < workers; w++) {
-    const f = path.join(tmp, `jobs${w}.json`);
-    fs.writeFileSync(f, JSON.stringify(jobs.filter((_, k) => k % workers === w)));
+  // every match in a fresh Node process (up to --par at once): a process that plays one match after another keeps the old
+  // pages in memory and slows down steadily (28s for its first match, over 300s by its eighteenth)
+  const queue = jobs.slice();
+  let running = 0, n = 0;
+  const next = () => {
+    if (!queue.length) { if (running === 0) summary(); return; }
+    const job = queue.shift(), f = path.join(tmp, `job${n++}.json`);
+    fs.writeFileSync(f, JSON.stringify([job]));
+    running++;
     const p = spawn(process.execPath, [__filename, '--child', f, '--limit', arg('limit', '300')], { stdio: ['ignore', 'pipe', 'inherit'] });
     let buf = '';
     p.stdout.on('data', d => {
@@ -82,8 +87,9 @@ if (process.argv.includes('--child')) {
         console.log(`${String(results.length).padStart(3)}/${jobs.length} ${r.a} v ${r.b}: new ${r.newTD ?? '?'} - ${r.oldTD ?? '?'} old (new ${r.newSide}, ${r.secs}s)${r.over ? '' : ' UNFINISHED'}`);
       }
     });
-    p.on('exit', () => { if (++finished === workers) summary(); });
-  }
+    p.on('exit', () => { running--; try { fs.unlinkSync(f); } catch (e) {} next(); });
+  };
+  for (let w = 0; w < Math.min(PAR, jobs.length); w++) next();
   function luck(k, n) {
     if (!n) return 1;
     const lo = Math.min(k, n - k); let p = 0, c = 1;

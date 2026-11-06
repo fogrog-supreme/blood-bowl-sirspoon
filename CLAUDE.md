@@ -34,8 +34,9 @@ https://sirspoon.github.io/BludBowl/ (served from `main`).
   and background chores pause), so a computer-vs-computer match takes ~10s. `node tools/ai-match.js` plays batches of them in
   parallel and compares AI settings (the `AIX` switches): e.g. `--races orc,human --n 20 --new all --old rr,blitz --par 4`.
   It prints the touchdown and win splits with the chance each is just luck. Without Playwright / Chromium (the owner's PC):
-  `node tools/ai-match-jsdom.js` takes the same options and runs the game in jsdom, several Node processes at once (~25-40s a
-  match, ~1,500 an hour with `--par 14`); it also counts each side's 1-die and defender-picks blocks. For `--old` "everything
+  `node tools/ai-match-jsdom.js` takes the same options and runs the game in jsdom, a fresh Node process per match, several at
+  once (~100s a match with 14 at once, so ~500 matches an hour); it also counts each side's 1-die and defender-picks blocks.
+  Small real differences need big runs: 48 matches only show a win-rate change of about 10 points; ~300 show ~5. For `--old` "everything
   but one switch", list all the others (every `AIX.on(...)` name in index.html).
 - The owner prefers a quick turnaround over big test runs. For an AI change: first measure the specific behaviour it targets
   (~24 matches), then a quick results check of ~48 matches (`--n 4` over 12 races) to catch anything clearly worse. Only go to

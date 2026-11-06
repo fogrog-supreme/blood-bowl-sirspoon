@@ -2,6 +2,17 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.27 (6 Nov 2026)
+- **Improved (AI):** players lying next to an opponent are stood up first (`stand1`), before the turn's blocks, when standing
+  (no dice) gives one of our standing players an assist on that opponent (worth half a point of block value, and the block
+  then at most 12% risk); the AI used to leave them to the end of the turn. Strong FUMBBL coaches open 41% of their turns'
+  moves with a stand-up in place, nearly always (95%) next to an opponent (`ai-training/README.md`, "Moving before
+  blocking"). Against the AI without it, over 288 matches on 12 teams: touchdowns 207-165 (a split that uneven by luck: 3%),
+  won 103, drew 102, lost 83, turnovers 1249-1275, casualties 427-433. Tried and dropped on the way: standing up everyone
+  lying next to an opponent first (24-36 touchdowns over 48), and lining up assists before the safe blocks (won 10, lost 22).
+- **Testing:** `tools/ai-match-jsdom.js` plays every match in a fresh process (one process playing match after match slowed
+  down steadily, from 28s to over 300s a match).
+
 ## v4.26 (6 Nov 2026)
 - **Improved (AI):** a bashier end to the computer's turn (`blk1`). Once everyone else has moved, a player still next to an
   opponent throws the block if it's a good trade: at most a 20% chance of a Turnover and at least 40% of knocking the target
