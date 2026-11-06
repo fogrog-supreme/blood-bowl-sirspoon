@@ -1010,3 +1010,18 @@ both keep the ball about 85-90% of the time; with three or more, the coaches kee
 Since v4.30 five changes made the AI play more like the coaches - bashier blocks, Blitz targets, more Blitzes, the screen - and
 none won more against the AI without them. Against itself the AI may not punish what they fix (its own defence and its own
 carrier play are the opponent); a different opponent could show it.
+
+### Released together after all (v4.31)
+The owner's rule: a change that plays the coaches' way and isn't worse goes in - it should help, and later changes may build on
+it. Against a different opponent, BotBowl's scripted bot (Humans only, 96 matches each, from v4.30):
+
+| | won-drew-lost | touchdowns |
+|---|---|---|
+| v4.30 | 57-25-14 | 103-42 |
+| + `scr1` | 57-24-15 | 89-31 |
+| + `bz5` | 58-27-11 | 104-29 |
+| + `bz2` with `bzMin` 2, `bzProb` 75 | 54-32-10 | 93-34 |
+| + all three | 63-17-16 | 110-35 |
+
+None worse. All three against v4.30 (mirror, 288 matches): touchdowns 233-199, won 108, drew 89, lost 91, Turnovers 1253-1329,
+blocks 43.3 v 40.4 a match - better than any of them alone. Released as v4.31 (the bar and route defaults now 2 and 75).

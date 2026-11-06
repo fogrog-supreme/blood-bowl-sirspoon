@@ -2,6 +2,20 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.31 (6 Nov 2026)
+- **Improved (AI):** three changes that make the AI play more like strong FUMBBL coaches, released together:
+  - the carrier's screen (`scr1`): once the carrier has moved, a spare player steps (without dice) to wherever it cuts the most
+    free paths to him (opponents who could reach him without a dodge), near or far, before the cage. Coaches leave 0.27 such
+    paths at the end of their turn, the AI 1.49 (now about 1.05), and keep the ball a round later 85% of the time (AI 69%, now 75%).
+  - whom to Blitz (`bz5`): a player in our carrier's path, one tying up a player of ours, or one escorting their carrier is worth
+    more, by the chance of knocking him down (the coaches' choices against everyone they could have Blitzed).
+  - more Blitzes (`bz2`, and the general Blitz's bar 2, was 3, its route allowed down to 75% safe, was 90%): on defence a player is
+    kept out of the screen to Blitz after it. The coaches Blitz in 80% of their turns, the AI in about half.
+  Each alone was level against the AI without it (`scr1` over 864 matches, `bz5` 288, the Blitz package 576). Together, against
+  v4.30: 288 matches, touchdowns 233-199, won 108, drew 89, lost 91, Turnovers 1253-1329, blocks 43.3 v 40.4 a match. Against
+  BotBowl's scripted bot (Humans, 96 matches each): v4.30 won 57, drew 25, lost 14, touchdowns 103-42; with all three 63-17-16,
+  110-35. Notes: `ai-training/README.md`, "The ball carrier's screen", "Whom the coaches Blitz", "More Blitzes, in full matches".
+
 ## v4.30 (6 Nov 2026)
 - **Improved (AI):** the order of the blocks (`seq1`). Knocking a player over takes away his assist for the defender in our other
   blocks and frees our players he marks to assist, so a block that makes the blocks still to come better is taken first (its own

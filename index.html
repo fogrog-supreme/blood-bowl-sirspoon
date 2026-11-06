@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.30</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.31</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -25244,23 +25244,41 @@
             function blitzPlan(me, act) {
                 if (state.blitzUsed) return null;
                 let best = null;
+                // (bz5) whom to Blitz, as strong FUMBBL coaches choose (ai-training/README.md, "Whom the coaches Blitz"): a player
+                // in our carrier's path, one tying up a player of ours (knocking him over frees ours to move without a dodge), or
+                // one escorting their carrier is worth more, by the chance of knocking him down
+                const z5 = AIX.on(me, 'bz5'), bc = state.ball.carrierId ? getPlayerById(state.ball.carrierId) : null;
+                const ourB = z5 && bc && bc.team === me && onPitch(bc) ? bc : null, theirB = z5 && bc && bc.team !== me && onPitch(bc) && !bc.isDown ? bc : null;
+                const extra = (p, d) => {
+                    if (!z5) return 0;
+                    let v = 0;
+                    if (ourB && d.id !== ourB.id) { const ah = toGo(ourB.x, me) - toGo(d.x, me); if (ah >= 1 && ah <= 4 && Math.abs(d.y - ourB.y) <= 2) v += AIX.p(me, 'bzPath', 1.5); }
+                    if (state.players.some(q => q.team === me && q.id !== p.id && onPitch(q) && !q.isDown && !q.isStunned && cheb(q, d) === 1)) v += AIX.p(me, 'bzEng', 1);
+                    if (theirB && d.id !== theirB.id && cheb(d, theirB) <= 3) v += AIX.p(me, 'bzEsc', 1);
+                    return v;
+                };
                 act.forEach(p => {
                     const c = state.ball.carrierId ? getPlayerById(state.ball.carrierId) : null;
                     if (c && c.id === p.id) return;
                     movesFor(p).forEach(m => {
-                        if (m.prob < 90) return;
+                        if (m.prob < AIX.p(me, 'bzProb', 75)) return;   // (AIP bzProb: how safe the route must be, %; v4.31: 75, was 90)
                         const left = (p.isDown ? Math.max(0, p.remainingMA - 3) : p.remainingMA) - m.path.length;
                         state.players.forEach(d => {
                             if (d.team === me || !onPitch(d) || d.isDown || Math.max(Math.abs(m.x - d.x), Math.abs(m.y - d.y)) !== 1) return;
                             blitzCtx = true; const e = blockEval(p, d, m.x, m.y); blitzCtx = false;
                             if (e.pTurn > AIX.p(me, 'bzTurn', 0.12)) return;
                             const pr = m.prob / 100 * (left >= 1 ? 1 : 5 / 6);
-                            const s = pr * e.ev - (1 - pr) * 8 - e.pTurn * 6 + (d.st >= 4 ? 0.5 : 0);
+                            const s = pr * (e.ev + e.pDown * extra(p, d)) - (1 - pr) * 8 - e.pTurn * 6 + (d.st >= 4 ? 0.5 : 0);
                             if (!best || s > best.s) best = { p, d, s };
                         });
                     });
                 });
-                if (!best || best.s < AIX.p(me, 'bzMin', 3)) return null;   // (AIP bzTurn, bzMin: dials for tests)
+                // (bz2) when they have the ball, a lower bar: strong FUMBBL coaches Blitz in 80% of their turns (the AI in about half),
+                // on defence mostly away from the ball, on a player already next to one of theirs (an assist: 2 dice) - wearing the
+                // other side down (ai-training/README.md, "Blitzes")
+                const tc = state.ball.carrierId ? getPlayerById(state.ball.carrierId) : null;
+                const bar = AIX.on(me, 'bz2') && tc && tc.team !== me && onPitch(tc) ? AIX.p(me, 'bzDef', 1.5) : AIX.p(me, 'bzMin', 2);   // (v4.31: bzMin 2, was 3)
+                if (!best || best.s < bar) return null;   // (AIP bzTurn, bzMin, bzDef: dials for tests)
                 return blitzOn(best.p, best.d.id);
             }
             function blitzOn(p, tid) {
@@ -25585,6 +25603,43 @@
                 const mine = state.players.filter(q => q.team === me && onPitch(q));
                 return agileTeam(me) || (mine.some(q => hasSk(q, 'Pass') || (q.pa != null && q.pa <= 2)) && mine.some(q => hasSk(q, 'Catch')));
             }
+            // (scr1) how many of their players could get next to our carrier c this turn with a free path: within their move,
+            // never leaving a square in our tackle zones (no dodge), round every player on the pitch; those needing Rushes count
+            // scrRush (0.4). Strong FUMBBL coaches leave 0.27 of these at the end of their turn, the AI 1.49, and the ball is lost
+            // far more often the more there are (ai-training/README.md, "The ball carrier's screen")
+            function carrierThreat(me, c) {
+                const W = CFG.cols, key = (x, y) => y * W + x, occ = new Set(), tz = new Set(), targets = new Set();
+                state.players.forEach(q => { if (onPitch(q)) occ.add(key(q.x, q.y)); });
+                state.players.forEach(q => {
+                    if (q.team !== me || !onPitch(q) || q.isDown || q.isStunned || q.isDistracted) return;
+                    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if ((dx || dy) && inPitch(q.x + dx, q.y + dy)) tz.add(key(q.x + dx, q.y + dy));
+                });
+                for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const x = c.x + dx, y = c.y + dy; if ((dx || dy) && inPitch(x, y) && !occ.has(key(x, y))) targets.add(key(x, y)); }
+                if (!targets.size) return 0;
+                const rushW = AIX.p(me, 'scrRush', 0.4);
+                let t = 0;
+                state.players.forEach(q => {
+                    if (q.team === me || !onPitch(q) || q.isStunned || q.isDistracted) return;
+                    const ma = (q.ma || 0) - (q.isDown ? 3 : 0), s0 = key(q.x, q.y);
+                    if (ma < 0 || tz.has(s0)) return;   // (marked: he'd have to dodge)
+                    const dist = new Map([[s0, 0]]), qu = [s0];
+                    let best = 99;
+                    for (let h = 0; h < qu.length; h++) {
+                        const sq = qu[h], d = dist.get(sq);
+                        if (targets.has(sq)) { if (d < best) best = d; continue; }
+                        if ((sq !== s0 && tz.has(sq)) || d >= ma + 2) continue;
+                        const x = sq % W, y = (sq - x) / W;
+                        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+                            if (!dx && !dy) continue;
+                            const nx = x + dx, ny = y + dy; if (!inPitch(nx, ny)) continue;
+                            const k = key(nx, ny); if (occ.has(k) || dist.has(k)) continue;
+                            dist.set(k, d + 1); qu.push(k);
+                        }
+                    }
+                    if (best <= ma) t += 1; else if (best <= ma + 2) t += rushW;
+                });
+                return t;
+            }
             function shieldPlan(me, act, c) {
                 // the opponents who could get at the carrier now, and how much
                 const all = oppReach(me), threats = new Set();
@@ -25842,6 +25897,8 @@
                     const cb0 = carrierBlitz(me, act, carrier);
                     const fl0 = foulPlan(me, act);
                     const hold = new Set([...(cb0 ? [cb0.p.id] : []), ...(fl0 ? [fl0.pid] : [])]);
+                    // (bz2) and the player who will Blitz (after the screen is in place), when it isn't their carrier
+                    if (AIX.on(me, 'bz2') && !cb0 && !state.blitzUsed) { const bz0 = blitzPlan(me, act); if (bz0) hold.add(bz0.pid); }
                     const free = act.filter(p => !hold.has(p.id));
                     const pl = plugPlan(me, free, carrier);
                     if (pl) return pl;
@@ -26034,6 +26091,27 @@
                 if (carrier && carrier.team === me && onPitch(carrier) && !carrier.isDown && AIX.on(me, 'realreach') && AIX.p(me, 'shield', 0) && (!act.includes(carrier) || tried.has(carrier.id) || carrier.hasActed)) {
                     const sh = shieldPlan(me, act, carrier);
                     if (sh) return sh;
+                }
+                // (scr1) the carrier has moved: before the cage, a spare player steps (without dice) to wherever it cuts the most
+                // free paths to him - standing in their way, or marking one of theirs so he'd have to dodge - near or far
+                if (AIX.on(me, 'scr1') && carrier && carrier.team === me && onPitch(carrier) && !carrier.isDown && !state.charge
+                    && (!act.includes(carrier) || tried.has(carrier.id) || carrier.hasActed)) {
+                    const now = carrierThreat(me, carrier);
+                    if (now > 0) {
+                        let best = null;
+                        act.forEach(a => {
+                            if (a.id === carrier.id || a.isDown || !canReposition(a, me)) return;
+                            const ox = a.x, oy = a.y;
+                            movesFor(a).forEach(m => {
+                                if (m.prob < 100 || m.isRush || (m.x === ox && m.y === oy)) return;
+                                a.x = m.x; a.y = m.y;
+                                let t = now; try { t = carrierThreat(me, carrier); } finally { a.x = ox; a.y = oy; }
+                                const gain = now - t - m.path.length * 0.01 - edgeRisk(m.x, m.y, me, a.id) * 0.3;
+                                if (gain >= AIX.p(me, 'scrMin', 0.35) && (!best || gain > best.gain)) best = { a, m, gain };
+                            });
+                        });
+                        if (best) { const tx = best.m.x, ty = best.m.y; return { pid: best.a.id, kind: 'move', pick: ms => ms.find(m => m.x === tx && m.y === ty && m.prob >= 100) || null }; }
+                    }
                 }
                 // (safepos: every move with no dice at all goes first, so a failed dodge or rush can't stop the rest moving)
                 const cage = (AIX.on(me, 'safepos') && formationPlan(me, act, true, false, true)) || formationPlan(me, act, true);

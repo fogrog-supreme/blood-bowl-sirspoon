@@ -2,6 +2,10 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.31 (6 Nov 2026)
+- The computer protects its ball carrier with a screen further out, not just a crowd round him, Blitzes more often, and picks
+  its Blitz targets more like strong human coaches (players in its carrier's way, or tying up its own players).
+
 ## v4.30 (6 Nov 2026)
 - The computer thinks about the order of its blocks (knocking down a player who would help the defender first) and where its
   blockers end up after a follow-up, so its later blocks get better dice. More casualties again, results the same or a little better.
