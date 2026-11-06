@@ -906,3 +906,21 @@ Tests against the AI without the change, 12 teams:
 The predictor's averages compare each kind of decision with the AI's usual play, but not in the same positions: a Blitz on a
 marker happens when the carrier is in trouble, and some of that trouble gets blamed on the Blitz. Treat the table as a list of
 places to look, not a measure of what a change will gain.
+
+## What-if tests: one decision in its own positions (Nov 2026, v4.28)
+Match tests can't see a decision that matters about 1% of win chance (it takes thousands of matches), and averages over recorded
+games compare different positions (above: the Blitz on our carrier's marker looked costly because it happens when the carrier
+is in trouble). `tools/ai-whatif.js` compares two choices in the same positions:
+1. `collect`: AI-v-AI matches; at each activation it asks what the AI would choose with settings A and with B (`--a` / `--b`:
+   switches, or `end` to end the turn there) and, where they differ, saves the whole match (the game's own save).
+2. `play`: loads each position, plays A (or B) for that decision, then the usual AI on both sides, `--k` times each, stopping at
+   the start of the deciding side's next turn and saving the position as the network sees it (`AI.bridge.nnNow`).
+3. `nn/whatif_value.py` (on the PC): the outcome predictor's expected result (win 1, draw half) at each stop; per position B's
+   average minus A's, then the average and margin over positions.
+The stop at the next turn is what makes it work: one turn of dice instead of a whole match. On the same 72 positions, ending
+the turn instead of playing on came out -4.2 +- 10.3 points played to full time, and -5.3 +- 2.2 judged at the next turn
+(clearly worse, as it should be). A position's 8 play-outs take ~15s in one page (14 at once: ~50 positions a minute).
+- The marker Blitz again: B = a plain block on the marker first (the change tried above) against A = the AI's Blitz, 55
+  positions x 8 play-outs: -0.7 +- 1.6 points, no difference (the 192 matches: level too).
+- About 6% of play-outs don't play the choice collected (the AI isn't exactly the same after a reload, e.g. it forgets which
+  players it set aside earlier in the turn); `play` reports how many.

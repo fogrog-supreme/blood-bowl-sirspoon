@@ -2,6 +2,14 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.28 (6 Nov 2026)
+- **Testing:** `tools/ai-whatif.js` judges one AI decision in its own positions. It saves real match positions where two AI
+  settings would choose differently, then plays each choice out from the same position many times, to the start of the
+  deciding side's next turn, where the outcome predictor (the neural network's value head, on the owner's PC) judges it. For
+  it the game has a test hook (`window.AI_WHATIF`: look at the AI's decision, ask what other switches would choose, play
+  something else), `SAVE.snapshot` is available to tests, and `AI.bridge.nnNow(team)` gives the position as the network sees
+  it. No change to play: the hook does nothing unless a test sets it.
+
 ## v4.27 (6 Nov 2026)
 - **Improved (AI):** players lying next to an opponent are stood up first (`stand1`), before the turn's blocks, when standing
   (no dice) gives one of our standing players an assist on that opponent (worth half a point of block value, and the block

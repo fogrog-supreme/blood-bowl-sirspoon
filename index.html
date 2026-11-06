@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.27</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.28</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -7508,7 +7508,7 @@
                 catch (e) { console.error('final save failed', e); return false; }
             }
             const resultRecorded = () => { if (!NET.on()) clear(); };
-            return { readNet, clearNet, resumeNet, encode, decode, save, quiet, read, has, clear, resume, resumeFromMenu, paintCard, exportFile, importFile, confirmReplace, exitAsk, note, keepFinished, resultRecorded,
+            return { readNet, clearNet, resumeNet, encode, decode, snapshot, save, quiet, read, has, clear, resume, resumeFromMenu, paintCard, exportFile, importFile, confirmReplace, exitAsk, note, keepFinished, resultRecorded,
                 slotOf, step, list, discardShown: () => clear(sel != null ? sel : '') };
         })();
 
@@ -26969,6 +26969,24 @@
                     const t0c = performance.now();
                     try { starAIPre(state.activeTeam); } catch (e) { console.error(e); }
                     try { plan = bbOn(state.activeTeam) ? bbChoose() : choose(); } catch (e) { console.error(e); plan = null; }
+                    // (tools/ai-whatif.js) a test can look at this decision, ask what the AI would choose with other switches (again),
+                    // and play something else instead (by returning it)
+                    if (window.AI_WHATIF && !bbOn(state.activeTeam)) {
+                        const me = state.activeTeam;
+                        const again = (flags, p) => {
+                            const f0 = AIX.flags[me], P = window.AIP = window.AIP || [], p0 = P[me];
+                            AIX.flags[me] = flags; if (p !== undefined) P[me] = p;
+                            moveMemo = new Map();
+                            try { return choose(); } finally { AIX.flags[me] = f0; if (p !== undefined) P[me] = p0; moveMemo = new Map(); }
+                        };
+                        const desc = pl => {
+                            if (!pl || pl.pid == null) return 'end the turn';
+                            const q = getPlayerById(pl.pid); let m = null;
+                            try { m = q && pl.pick ? pl.pick(movesFor(q), q) : null; } catch (e) {}
+                            return `${pl.kind} ${q ? q.type + '@' + q.x + ',' + q.y : pl.pid}${m ? ' to ' + m.x + ',' + m.y : ''}${pl.target != null ? ' on ' + pl.target : ''}${pl.receiver != null ? ' for ' + pl.receiver : ''}`;
+                        };
+                        try { const r = window.AI_WHATIF({ plan, me, again, desc }); if (r !== undefined) plan = r; } catch (e) { console.error('whatif', e); }
+                    }
                     if (window.AI_TIMES) window.AI_TIMES.push(Math.round(performance.now() - t0c));
                     if (window.AI_TRACE) { const q = plan && getPlayerById(plan.pid); window.AI_TRACE.push(plan ? `${plan.kind} ${q ? q.type + '@' + q.x + ',' + q.y : ''}${plan.target != null ? ' -> ' + plan.target : ''}${plan.receiver != null ? ' to ' + plan.receiver : ''}` : 'END TURN'); }
                     if (plan) { plan.step = 0; const p = getPlayerById(plan.pid), t = plan.target != null ? getPlayerById(plan.target) : null; cameraFocus([p, t && cheb(p, t) <= 3 ? t : null]); }
@@ -27399,7 +27417,8 @@
                 })();
                 return { load, turn, reroll, dice, push, follow, setup, kick, touchback: touchbackTo, apothecary, intercept,
                     nnLayout: () => nn.layout(), nnRecord: (op, arg) => nn.record(op, arg, a => (op === 'touchback' ? touchbackTo : { turn, reroll, dice, push, follow, setup, kick, apothecary, intercept }[op])(a)),
-                    nnObs: (o) => nn.obs(o.op, o.arg), nnDecode: (o) => nn.decode(o.op, o.arg, o.index, o.route), nnLabel: (o) => nn.label(o.op, o.arg), nnStats: () => nn.stats };
+                    nnObs: (o) => nn.obs(o.op, o.arg), nnNow: t => { lastMe = t; return nn.obs('turn', {}); },   // (the game as it is, from team t's side)
+                    nnDecode: (o) => nn.decode(o.op, o.arg, o.index, o.route), nnLabel: (o) => nn.label(o.op, o.arg), nnStats: () => nn.stats };
             })();
             // the End Turn button shows when the computer is playing
             let lastLabel = null;

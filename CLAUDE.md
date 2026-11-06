@@ -36,7 +36,9 @@ https://sirspoon.github.io/BludBowl/ (served from `main`).
   It prints the touchdown and win splits with the chance each is just luck. Without Playwright / Chromium (the owner's PC):
   `node tools/ai-match-jsdom.js` takes the same options and runs the game in jsdom, a fresh Node process per match, several at
   once (~100s a match with 14 at once, so ~500 matches an hour); it also counts each side's 1-die and defender-picks blocks.
-  Small real differences need big runs: 48 matches only show a win-rate change of about 10 points; ~300 show ~5. For `--old` "everything
+  Small real differences need big runs: 48 matches only show a win-rate change of about 10 points; ~300 show ~5.
+  `node tools/ai-whatif.js` judges one decision instead: it collects positions where two settings choose differently and plays
+  both choices out from each (see the top of the file and `ai-training/README.md`, "What-if tests"). For `--old` "everything
   but one switch", list all the others (every `AIX.on(...)` name in index.html).
 - The owner prefers a quick turnaround over big test runs. For an AI change: first measure the specific behaviour it targets
   (~24 matches), then a quick results check of ~48 matches (`--n 4` over 12 races) to catch anything clearly worse. Only go to
