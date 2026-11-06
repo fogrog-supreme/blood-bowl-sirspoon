@@ -969,3 +969,18 @@ The coaches Blitz in about 80% of their turns, the AI (v4.30) in half. In matche
 Blitzing as often as the coaches, with the AI's present choice of whom to Blitz, adds casualties on both sides and doesn't win
 more. Not released (the owner's call: not unless it helps). If Blitzes come back, the question is whom the coaches Blitz and why
 (`nn/data/blitz_study.md`), not how often.
+
+### Whom the coaches Blitz (not kept)
+`nn/blitz_targets.py` (`nn/data/blitz_targets.md`): each Blitz's target against everyone who could have been Blitzed in that
+position, as lift (how much more often than chance) and a conditional-logit weight (all features together). Coaches (FUMBBL, 4,046
+Blitzes) against the AI (its own games, 4,919):
+- their carrier: weight +2.3 v +4.8 (the AI nearly always goes for him); his escort (1-3 squares from him): +0.4-0.6 v -0.2.
+- with our ball, a player in our carrier's path (1-4 ahead, within 2 rows): +0.7 (lift 1.7) v +0.1; a player with none of his
+  team-mates next to him: +0.7 v +0.3.
+- a player already next to one of ours (knocking him over frees ours to move without a dodge): +1.0 v +0.6.
+- big or tough targets: the AI shies away far more (lift ST 4+ 0.22 v 0.57, Mighty Blow 0.14 v 0.58, Stand Firm 0.12 v 0.56),
+  and from Block and Dodge players (-0.6, -0.7 v -0.2).
+`bz5`: the general Blitz valuing a target in our carrier's path (1.5), one tying up one of ours (1) and their carrier's escort (1),
+each by the chance of knocking him down. Per changed choice: 0.0 +- 1.0 points (134 positions); 288 matches against v4.30:
+touchdowns 204-212, won 96, drew 93, lost 99, casualties 500-434, Turnovers +7%. Not kept. Like every hitting change since v4.29,
+more casualties and no more wins: the hitting isn't what's holding the results back.
