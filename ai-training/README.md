@@ -1029,3 +1029,23 @@ blocks 43.3 v 40.4 a match - better than any of them alone. Released as v4.31 (t
   drew 297, lost 260 (luck 5%), 52.7%. Against BotBowl's bot, 288 matches each: v4.31 won 168, drew 81, lost 39, touchdowns 290-101;
   v4.30 won 171, drew 68, lost 49, touchdowns 312-123 - the same touchdown margin (+0.66 a match each), v4.31 with more Turnovers
   (1114 v 907) and casualties (508 v 412). Better head to head; level against the bot.
+
+### Against BotBowl's scripted bot in BotBowl itself (v4.24 v v4.31)
+`nn/evaluate.py --model bludbowl --opponent scripted --games 224` (BotBowl's own engine, all its teams, the same seed so the same
+pairings): v4.24 won 123, drew 58, lost 43, touchdowns 232-97, blocks 28.3 v 42.5 a match, knock-downs 18.9 v 24.7, casualties
+2.0 v 2.2; v4.31 won 130, drew 62, lost 32, touchdowns 244-81, blocks 37.4 v 39.6, knock-downs 23.1 v 23.9, casualties 2.4 v 2.1.
+(The network bb_v3b on the same games: 116-69-39.)
+
+### Ball security in a drive (Nov 2026)
+`nn/drives.py`, `nn/ball_loss.py` (both sides' turn starts in order; the FUMBBL side from the 39 matches with both coaches
+recorded for the losses):
+- Coaches score 1.26 touchdowns a team a match in these replays (the AI 0.81 in mirror matches), 60% of them on turn 8 of a half
+  (the AI 17%): they keep the ball safe and score last. Possessions end in a touchdown 46% (after 3.6 turns) against 27% (2.1),
+  the ball lost 33% against 52% (1.7). In easy range before turn 8 the coaches score that turn 45% (the AI 84%) and, if not, still
+  score later in the half 85% (the AI 33%; it loses the ball 58%). The owner's choice: no stalling for now - score, but keep the ball.
+- When it's lost: per turn holding it, on the holding team's own turn 4% v 6%, on the other side's turn 23% v 32%. So mostly the
+  defenders getting to the carrier: the free paths (above). With none, the AI keeps the ball as well as the coaches.
+- When the AI ends its turn holding the ball it has almost nobody left (0.05 unmarked unused players): the free paths come from how
+  its players were used earlier in the turn, not from players left idle.
+- A safer stopping square for the carrier (`dangerW` 2 and 3, was 1.3) didn't cut the free paths (0.96, 0.93 v 0.87 at the end of
+  the turn) and was level in 288 matches each (won 92-90, 97-97). Left at 1.3.
