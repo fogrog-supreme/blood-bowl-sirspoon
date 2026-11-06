@@ -984,3 +984,29 @@ Blitzes) against the AI (its own games, 4,919):
 each by the chance of knocking him down. Per changed choice: 0.0 +- 1.0 points (134 positions); 288 matches against v4.30:
 touchdowns 204-212, won 96, drew 93, lost 99, casualties 500-434, Turnovers +7%. Not kept. Like every hitting change since v4.29,
 more casualties and no more wins: the hitting isn't what's holding the results back.
+
+## The ball carrier's screen (Nov 2026, not kept)
+`nn/carrier.py` (`nn/data/carrier.md`): positions at the start of the defenders' turn with the other side holding the ball, so the
+carrier's team has just finished its turn (FUMBBL: the recorded coach's opponent, 1550+ in the top matches; the AI: v4.30 mirror
+matches, 96). For the carrier's team:
+
+| | FUMBBL coaches | AI v4.30 | AI with `scr1` |
+|---|---|---|---|
+| team-mates next to the carrier | 1.53 | 2.06 | 1.71 |
+| cage corners filled | 1.09 | 1.33 | 1.18 |
+| team-mates in a line behind him | 0.11 | 0.20 | 0.12 |
+| defenders with a free path to him (no dodge, within their move) | 0.27 | 1.49 | 1.05 |
+| ...only with Rushes | 0.24 | 0.52 | 0.36 |
+| ball kept (or scored) a round later | 85% | 69% | 75% |
+| squares gained a round later | 2.8 | 2.0 | 2.7 |
+
+The coaches crowd the carrier less but leave almost nobody a free run at him (none in 86% of positions; the AI 38%). With none,
+both keep the ball about 85-90% of the time; with three or more, the coaches keep it 35%.
+- `scr1`: once the carrier has moved, a spare player steps (without dice) to wherever it cuts the most free paths to him (Rushes
+  0.4), before the cage. It moved the AI the coaches' way (table), but per changed choice -0.7 +- 1.0 points (200 positions, the
+  whole turn), and in 864 matches against v4.30: touchdowns 659-645, won 292, drew 271, lost 301, Turnovers 3874-3951, casualties
+  caused 1301-1407 (the screening players don't hit). Not kept. (The older `shieldPlan`, AIP `shield`, is the same idea with
+  real reach; also left off.)
+Since v4.30 five changes made the AI play more like the coaches - bashier blocks, Blitz targets, more Blitzes, the screen - and
+none won more against the AI without them. Against itself the AI may not punish what they fix (its own defence and its own
+carrier play are the opponent); a different opponent could show it.
