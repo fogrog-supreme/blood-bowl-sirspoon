@@ -894,3 +894,15 @@ re-rolls - all come out negative together: the predictor misreads those moments,
   moves" cases are with our ball. Two independent sources point at it: the next thing to try.
 - Blocks come out slightly positive and ordinary moves slightly negative: room to block more and move less.
 - Points are of win chance (a draw half): 1 point = 1% more of a win.
+
+### Following it up: the Blitz on a player marking our carrier (not kept)
+Split by target (`nn/blitz_split.py`), the costly Blitzes with our ball are mostly on a player marking our carrier (7,569, -0.80
+each, mostly the turn's first action: step 5b), against -0.23 for one near the carrier (the lane Blitz) and -0.55 far away.
+With our carrier marked, a plain block on a marker by a player already next to him comes out about level (`nn/marked_split.py`).
+Tests against the AI without the change, 12 teams:
+- skipping step 5b: touchdowns 56-73, won 28, lost 35 over 96 (worse).
+- a plain block on a marker first if there is a good one, then step 5b: touchdowns 149-142, won 64, drew 70, lost 58 over 192
+  (level).
+The predictor's averages compare each kind of decision with the AI's usual play, but not in the same positions: a Blitz on a
+marker happens when the carrier is in trouble, and some of that trouble gets blamed on the Blitz. Treat the table as a list of
+places to look, not a measure of what a change will gain.
