@@ -2,6 +2,23 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.30 (6 Nov 2026)
+- **Improved (AI):** the order of the blocks (`seq1`). Knocking a player over takes away his assist for the defender in our other
+  blocks and frees our players he marks to assist, so a block that makes the blocks still to come better is taken first (its own
+  value, plus 0.6 x its chance of knocking the target down x how much better those blocks get). The nearly safe blocks still come
+  first. Against the AI without it: 288 matches, touchdowns 225-195, won 109, drew 90, lost 89, casualties 458-413; with `fol1`
+  as well, another 288: touchdowns 191-195, won 89, lost 95, casualties 490-405. Over the 576: casualties caused 948-818 (that
+  split by luck: well under 1%), results leaning positive but within luck.
+- **Improved (AI):** follow-ups (`fol1`): after a block the AI follows up or stays put, whichever leaves its blocks still to come
+  clearly better (the square decides which of them the blocker assists, and whom it marks); otherwise as before. 288 matches:
+  blocks 40.4 v 38.7 a match, 3-dice 5.0 v 4.5, 2-dice 32.5 v 31.4, results level (won 96, lost 95).
+- Both judged with the what-if tests as well (`seq1`: -0.4 +- 0.6 points per changed choice, too small to see one at a time).
+  Tried and dropped: a wider assist set-up before blocks (`prep1`, -1.0 +- 1.0) and a Blitz on defence held back for after the
+  screen (`bz2`, -0.5 +- 0.7). Notes: `ai-training/README.md`, "Blocks and Blitzes against the coaches".
+- **Testing:** `tools/ai-whatif.js play --turn` plays the rest of that turn with the option's settings too (for changes that are a
+  plan over several actions); positions from different collections get different ids. `tools/ai-match-jsdom.js` prints blocks
+  by dice (3, 2, 1, defender picks).
+
 ## v4.29 (6 Nov 2026)
 - **Changed (AI):** bashier blocking. The AI takes ordinary blocks with up to a 17% chance of a Turnover (was 12%; agile teams
   12%, was 5%) and worth 1.5 or more (was 2.5). Against the AI before, over 288 matches on 12 teams: casualties caused 489-411

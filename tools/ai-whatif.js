@@ -10,7 +10,8 @@
 //      node tools/ai-whatif.js play --in pos.jsonl --k 4 --par 14 --out roll.jsonl [--to game]
 //    By default (--to next) a play-out stops at the start of the deciding side's next turn and saves the position as the
 //    network sees it, for the outcome predictor to judge (nn/whatif_value.py on the PC): one turn of dice instead of a whole
-//    match, so far less luck in the comparison, and quick. --to game plays to full time and prints, from the deciding side's
+//    match, so far less luck in the comparison, and quick. --turn: the rest of that turn with A's (or B's) settings too, not
+//    just the one decision (for a change that is a plan over several actions). --to game plays to full time and prints, from the deciding side's
 //    view and averaged over positions, B's result minus A's (win 1, draw 0.5), the touchdown difference at full time and at
 //    the end of the half the decision was in, each with its margin (95%).
 //      node tools/ai-whatif.js report --in roll.jsonl      (the same summary again, from a finished play-out)
@@ -50,7 +51,7 @@ async function collectOne(job) {
   }
   const out = JSON.parse(w.eval('JSON.stringify(window.WI)'));
   try { w.close(); } catch (e) {}
-  return out.map((p, k) => ({ id: `${job.a}-${job.b}-${job.i}-${k}`, a: job.a, b: job.b, ...p, A: job.A, B: job.B, ap: job.ap, bp: job.bp, base: job.base }));
+  return out.map((p, k) => ({ id: `${job.run}-${job.a}-${job.b}-${job.i}-${k}`, a: job.a, b: job.b, ...p, A: job.A, B: job.B, ap: job.ap, bp: job.bp, base: job.base }));
 }
 
 // one position's play-outs (job.items: [{ opt, rep, to }]) in one page: the game's own resume needs no reload. The page tells
@@ -68,7 +69,9 @@ async function playMany(job) {
       const C = window.WI_CUR; if (!C || C.done) return;
       if (C.desc != null) {
         if (C.half == null && state.half !== P.half) C.half = [state.score[0], state.score[1]];
-        if (C.to === 'next' && me === P.me && (state.half !== P.half || state.turn[me] !== P.turn)) { C.obs = AI.bridge.nnNow(me); finish(); }
+        if (C.to === 'next' && me === P.me && (state.half !== P.half || state.turn[me] !== P.turn)) { C.obs = AI.bridge.nnNow(me); finish(); return; }
+        // (--turn) the rest of that turn with the option's settings too, for changes that are a plan over several actions
+        if (C.turn && C.opt !== 'end' && me === P.me && state.half === P.half && state.turn[me] === P.turn) return again(C.opt, C.op);
         return;
       }
       const pl = C.opt === 'end' ? null : again(C.opt, C.op);
@@ -87,7 +90,7 @@ async function playMany(job) {
     const done = new Promise(res => { w.__done = res; setTimeout(res, LIMIT); });
     w.eval(`(() => { const P = JSON.parse(window.__pos), I = JSON.parse(window.__cur);
       AIX.flags[0] = P.base; AIX.flags[1] = P.base;
-      window.WI_CUR = { opt: I.opt === 'A' ? P.A : P.B, op: I.opt === 'A' ? P.ap : P.bp, to: I.to, desc: null, obs: null, at: null, half: null, done: false, over: false };
+      window.WI_CUR = { opt: I.opt === 'A' ? P.A : P.B, op: I.opt === 'A' ? P.ap : P.bp, to: I.to, turn: I.turn, desc: null, obs: null, at: null, half: null, done: false, over: false };
       SAVE.resume(P.snap);
       AI.setPaused(false); AI.set(0, true); AI.set(1, true); })()`);
     await done;
@@ -132,7 +135,8 @@ if (process.argv.includes('--child')) {
   if (mode === 'collect') {
     const N = +arg('n', 2), jobs = [];
     const races = arg('races', '') ? arg('races').split(',') : [];
-    const job = (a, b, i) => ({ kind: 'collect', a, b, i, base: flags(arg('base', 'all')), A: flags(arg('a', 'all')), B: flags(arg('b', 'end')),
+    const RUN = Math.random().toString(36).slice(2, 7);   // (so positions from different collections never share an id)
+    const job = (a, b, i) => ({ kind: 'collect', run: RUN, a, b, i, base: flags(arg('base', 'all')), A: flags(arg('a', 'all')), B: flags(arg('b', 'end')),
       ap: arg('ap') ? JSON.parse(arg('ap')) : undefined, bp: arg('bp') ? JSON.parse(arg('bp')) : undefined, per: +arg('per', 6), rate: +arg('rate', 1) });
     races.forEach(r => { for (let i = 0; i < N; i++) jobs.push(job(r, r, i)); });
     (arg('pairs', '') ? arg('pairs').split(',') : []).forEach(pr => { const [a, b] = pr.split(':'); for (let i = 0; i < N; i++) jobs.push(job(a, b, i)); });
@@ -150,7 +154,8 @@ if (process.argv.includes('--child')) {
     const max = +arg('max', pos.length), use = pos.slice(0, max), jobs = [];
     // A and B alternate, so a run stopped early still has both for most positions
     const TO = arg('to', 'next');
-    use.forEach(p => { const items = []; for (let r = 0; r < K; r++) ['A', 'B'].forEach(opt => items.push({ opt, rep: r, to: TO })); jobs.push({ kind: 'play', pos: p, items }); });
+    const TURN = process.argv.includes('--turn');
+    use.forEach(p => { const items = []; for (let r = 0; r < K; r++) ['A', 'B'].forEach(opt => items.push({ opt, rep: r, to: TO, turn: TURN })); jobs.push({ kind: 'play', pos: p, items }); });
     const results = [], out = OUT ? fs.createWriteStream(OUT) : null, t0 = Date.now();
     console.log(`${use.length} positions x 2 options x ${K} = ${use.length * 2 * K} play-outs`);
     let done = 0;

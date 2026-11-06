@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.29</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.30</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -24523,6 +24523,23 @@
                 return { ev: ev / total + surf, pTurn: bad / total, n, chooser, pDown: down / total, pMove: moved / total };
             }
 
+            // (seq1, fol1) how good the blocks still to come are: for each opponent one of our players still to act could block
+            // (skip: players of ours left out, skipT: a target left out), the best such block - its value less 10 x its Turnover
+            // chance, or 0 if it isn't one the AI would take - added up over opponents
+            function blocksAhead(me, skip, skipT) {
+                const best = new Map(), lim = AIX.p(me, 'blkTurn', 0.17), min = AIX.p(me, 'blkMin', 1.5);
+                avail(me).forEach(b => {
+                    if (b.isDown || skip.has(b.id)) return;
+                    adjacentTargets(b).forEach(d => {
+                        if (d.id === skipT || d.isStunned) return;
+                        const e = blockEval(b, d);
+                        const v = e.chooser === me && e.pTurn <= lim && e.ev >= min ? e.ev - e.pTurn * 10 : 0;
+                        if (v > (best.get(d.id) || 0)) best.set(d.id, v);
+                    });
+                });
+                let t = 0; best.forEach(v => { t += v; }); return t;
+            }
+
             // ---- planning a turn ----
             function avail(team) {
                 return state.players.filter(p => p.team === team && onPitch(p) && !p.hasActed && !p.isStunned && !p.isDistracted && !tried.has(p.id) && !hasSk(p, 'Ball & Chain'));
@@ -25774,6 +25791,21 @@
                     });
                 });
                 blocks.sort((a, b) => (a.e.pTurn < 0.05) !== (b.e.pTurn < 0.05) ? (a.e.pTurn < 0.05 ? -1 : 1) : (b.v - b.e.pTurn * 10) - (a.v - a.e.pTurn * 10));
+                // (seq1) the order of the blocks: knocking a player over takes away his help for the defender in our other blocks
+                // (an assist) and frees our players he marks to assist, so a block that makes our other blocks better comes first:
+                // its own value plus, if it knocks the target down, how much better the blocks still to come get (seqW of it).
+                // The nearly safe ones still come before the rest.
+                if (AIX.on(me, 'seq1') && blocks.length > 1) {
+                    const w = AIX.p(me, 'seqW', 0.6);
+                    blocks.forEach(x => {
+                        const skip = new Set([x.p.id]), before = blocksAhead(me, skip, x.d.id), wasDown = x.d.isDown;
+                        let after = before;
+                        x.d.isDown = true;
+                        try { after = blocksAhead(me, skip, x.d.id); } finally { x.d.isDown = wasDown; }
+                        x.seq = x.v - x.e.pTurn * 10 + w * x.e.pDown * Math.max(0, after - before);
+                    });
+                    blocks.sort((a, b) => (a.e.pTurn < 0.05) !== (b.e.pTurn < 0.05) ? (a.e.pTurn < 0.05 ? -1 : 1) : b.seq - a.seq);
+                }
                 const blockPlan = b => ({ pid: b.p.id, kind: 'block', target: b.d.id });
 
                 // babysit a Really Stupid player before he goes: a team-mate next to him (not Really Stupid) adds 2 to his roll
@@ -26799,7 +26831,18 @@
                 // follow2: a strong player (ST 4+ or AV 10+) not carrying the ball steps up into contact - it keeps their players tied up
                 // and leaves ours placed to block again next turn - unless the new square is much more crowded
                 const strong = AIX.on(a.team, 'follow2') && !carrierA && (a.st >= 4 || a.av >= 10);
-                const go = stick || (!edgeWorse && (carrierA ? (there === 0 || (forward && there <= here)) : there <= here + (forward ? 1 : 0) + (strong ? AIX.p(a.team, 'fuTz', 2) : 0)));
+                let go = stick || (!edgeWorse && (carrierA ? (there === 0 || (forward && there <= here)) : there <= here + (forward ? 1 : 0) + (strong ? AIX.p(a.team, 'fuTz', 2) : 0)));
+                // (fol1) where the blocker stands decides which of our blocks still to come it assists (and which of their
+                // players it ties up): follow up or stay, whichever leaves those blocks clearly better
+                if (AIX.on(a.team, 'fol1') && !carrierA && !stick && a.team === state.activeTeam && !getPlayer(v.x, v.y)) {
+                    const skip = new Set([a.id]), stay = blocksAhead(a.team, skip), ox = a.x, oy = a.y;
+                    let gone = stay;
+                    a.x = v.x; a.y = v.y;
+                    try { gone = blocksAhead(a.team, skip); } finally { a.x = ox; a.y = oy; }
+                    const lim = AIX.p(a.team, 'folGain', 0.5);
+                    if (gone - stay >= lim && !edgeWorse) go = true;
+                    else if (stay - gone >= lim) go = false;
+                }
                 if (go) grid(v.x, v.y); else click('btn-stay-put');
             }
             function interception() {

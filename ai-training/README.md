@@ -934,3 +934,27 @@ general Blitz's worth 3 -> 2: -0.5 +- 0.9 (87). All three block dials together (
 drew 87, lost 96, touchdowns 209-213), casualties caused 489-411, blocks 40.6 v 36.2 a match, Turnovers 1315-1229. Released as
 v4.29 for the casualties (some tournaments score them). The per-decision gain is small enough that 288 matches can't see it in
 the results; the casualties they can.
+
+## Blocks and Blitzes against the coaches (Nov 2026, v4.30)
+Counted the same way on both sides (team decisions per team-turn; FUMBBL from the 288 replays' decisions, the AI from 48 mirror
+matches on 12 teams; FUMBBL's own "46 blocks a match" counts every block roll, Frenzy and Multiple Block included):
+
+| per team-turn | FUMBBL coaches | AI v4.29 | AI v4.30 |
+|---|---|---|---|
+| blocks | 1.51 | 1.94 | 2.04 |
+| Blitzes | 0.85 (a Blitz in 80% of turns) | 0.52 | 0.50 |
+
+At the start of a turn (`nn/contact.py`, 12 teams) the AI has more players next to an opponent than the coaches (4.5 v 3.5; 2.0 v
+1.4 with a 2+ dice block on offer). Its opponent is itself, which stays in contact more than a human would, so it isn't short of
+blocks: the coaches' extra hitting is the Blitz. Their Blitzes (`nn/blitz_study.py`, `nn/data/blitz_study.md`) against the AI's:
+on their carrier 14% v 43%, on a player marking our carrier 7% v 19%, route needing dice 16% v 9%, 2 dice 70% v 59%, 3 dice 15%
+v 24%, target with Block 23% v 6%. On defence a third are on the carrier; the rest are mostly on ST 2-3 players away from the ball,
+65% on one already next to one of the coaches' players (an assist). Where a coach Blitzed with the other side holding the ball, the
+AI moved (82%). Tried:
+- `prep1`: assist set-ups with the block limits as they are now and a lower bar for the gain, and the Blitz valuing a target whose
+  fall makes our other blocks better: almost all the changed choices were assist moves, -1.0 +- 1.0 points (131 positions). Dropped.
+- `bz2`: on defence a player held out of the screen to Blitz after it (bar 1.5, was 3): -0.5 +- 0.7 (180 positions, the whole
+  turn played with it). Dropped; the predictor may undervalue wearing the other side down, which pays off over later turns.
+- `seq1` (block order) and `fol1` (follow-ups): released in v4.30 (CHANGELOG-FULL.md). Blocks by dice a team a match, v4.30 v
+  v4.29: 3 dice 5.1 v 4.7, 2 dice 32.5 v 31.7, 1 die 2.7 v 3.0.
+Still open: why the AI Blitzes in half its turns where the coaches Blitz in 80%, and what they gain by it.

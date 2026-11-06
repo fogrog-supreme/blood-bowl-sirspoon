@@ -2,6 +2,10 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.30 (6 Nov 2026)
+- The computer thinks about the order of its blocks (knocking down a player who would help the defender first) and where its
+  blockers end up after a follow-up, so its later blocks get better dice. More casualties again, results the same or a little better.
+
 ## v4.29 (6 Nov 2026)
 - The computer blocks more and hurts more: about 4 more blocks and a quarter more casualties a match, with the same results.
 

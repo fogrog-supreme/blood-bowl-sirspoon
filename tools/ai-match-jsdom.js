@@ -54,6 +54,7 @@ if (process.argv.includes('--child')) {
       newTD: res.score[n], oldTD: res.score[1 - n], newCas: res.cas[n], oldCas: res.cas[1 - n], newTO: res.to[n], oldTO: res.to[1 - n],
       newBl: res.bl[n], oldBl: res.bl[1 - n], newRR: res.rr[n], oldRR: res.rr[1 - n],
       newOne: res.bx.one[n], oldOne: res.bx.one[1 - n], newDef: res.bx.defPicks[n], oldDef: res.bx.defPicks[1 - n],
+      newTwo: res.bx.two[n], oldTwo: res.bx.two[1 - n], newThree: res.bx.three[n], oldThree: res.bx.three[1 - n],
       errs: errors.slice(0, 3) };
   }
 } else {
@@ -106,7 +107,7 @@ if (process.argv.includes('--child')) {
     console.log(`casualties  new caused ${sum('newCas')} - ${sum('oldCas')} old`);
     console.log(`turnovers   new ${sum('newTO')} - ${sum('oldTO')} old`);
     console.log(`re-rolls    new ${sum('newRR')} - ${sum('oldRR')} old (per team per match: ${per('newRR')} - ${per('oldRR')})`);
-    console.log(`blocks      new ${sum('newBl')} - ${sum('oldBl')} old (per team per match: ${per('newBl')} - ${per('oldBl')}); 1-die ${per('newOne')} - ${per('oldOne')}; defender picks ${per('newDef')} - ${per('oldDef')}`);
+    console.log(`blocks      new ${sum('newBl')} - ${sum('oldBl')} old (per team per match: ${per('newBl')} - ${per('oldBl')}); 3 dice ${per('newThree')} - ${per('oldThree')}; 2 dice ${per('newTwo')} - ${per('oldTwo')}; 1 die ${per('newOne')} - ${per('oldOne')}; defender picks ${per('newDef')} - ${per('oldDef')}`);
     process.exit(0);
   }
 }
