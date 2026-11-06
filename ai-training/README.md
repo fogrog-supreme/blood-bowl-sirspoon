@@ -1055,3 +1055,14 @@ recorded for the losses):
 - `lane1` (released in v4.32): while our carrier still has to move, a team-mate's move that would shorten his way forward waits
   until after him (the owner's observation in play). 288 matches against v4.31: touchdowns 240-232, won 105, drew 94, lost 89;
   against BotBowl's bot 55-30-11, touchdowns 102-32.
+
+### Defending a break down a flank (v4.33)
+`nn/flank.py`: defending turns with the other side's carrier in a wide zone; defenders that end 2+ squares further from where he
+stood (and 2+ rows further from his sideline: "to the far side"). Coaches and the AI were alike on average (carrier in our half:
+0.46 v 0.44 to the far side a turn; turns with two or more: 11% v 12%), the AI bringing more defenders closer (2.3 v 1.7). The
+far-side runs the owner saw came from the full-width screen (rows 1, 4, 7, 10, 13 in front of the carrier): `flk1` keeps only the
+rows the carrier could reach this turn (0.39, 9%). Released in v4.33 (CHANGELOG-FULL.md).
+- Giving up ground (the owner's question): with their carrier in his own half the AI drops back less than the coaches (2+ squares
+  back 0.60 v 0.66 a turn; deep in his half 0.14 v 0.42) and stands closer to him (median 2.4 v 3.4 squares in front), with fewer
+  players 5+ squares back (0.9 v 2.2). Once he's in our half it has to run back more (1.87 v 1.44 a turn): it pressed up and has
+  nobody deep (0.05 v 0.27). Not a retreat too early, if anything too few kept back.

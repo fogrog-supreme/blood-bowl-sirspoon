@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.32</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.33</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -25093,7 +25093,11 @@
                     const fx = c.x + k * back, bx = fx + 2 * back, ownEZ = endX(other(me));
                     // the screen runs right across the pitch (rows 1, 4, 7, 10, 13: every square of the column is in someone's
                     // tackle zone), nearest the carrier first, so nobody can run past it without a dodge
-                    SCREEN_ROWS.slice().sort((a, b) => Math.abs(a - c.y) - Math.abs(b - c.y)).forEach(y => add(fx, y, 'screen'));
+                    // (flk1) only the rows their carrier could reach this turn (his move and two Rushes from his row): on a break down
+                    // one flank the far-side screen squares sent two defenders running back to the other corner, out of the play (the
+                    // owner saw it)
+                    const reachY = AIX.on(me, 'flk1') ? (c.ma || 6) + 2 : 99;
+                    SCREEN_ROWS.slice().filter(y => Math.abs(y - c.y) <= reachY).sort((a, b) => Math.abs(a - c.y) - Math.abs(b - c.y)).forEach(y => add(fx, y, 'screen'));
                     // anyone of theirs already past the screen, loose behind our lines, gets marked
                     state.players.filter(q => q.team === c.team && q.id !== c.id && onPitch(q) && !q.isDown && !q.isStunned && toGo(q.x, c.team) < toGo(fx, c.team) && tzFor(q.x, q.y, c.team) === 0)
                         .sort((a, b) => toGo(a.x, c.team) - toGo(b.x, c.team)).forEach(q => add(q.x + back, q.y, 'mark'));

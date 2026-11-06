@@ -2,6 +2,10 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.33 (6 Nov 2026)
+- When you break down one flank, fewer of the computer's defenders run back to the far corner: they only screen the rows your
+  carrier could actually reach.
+
 ## v4.32 (6 Nov 2026)
 - The computer's team-mates no longer step into its ball carrier's way before he has moved: they wait, so he can still take the
   open route forward.

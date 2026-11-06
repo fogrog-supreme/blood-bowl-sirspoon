@@ -2,6 +2,14 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.33 (6 Nov 2026)
+- **Improved (AI):** the defensive screen (`flk1`) only covers the rows the other side's carrier could reach this turn (his move
+  and two Rushes from his row), not the whole width of the pitch: on a break down one flank the far-side screen squares sent two
+  defenders running back towards the other corner, out of the play (the owner saw it in play). Defenders heading 2+ squares away
+  to the far side on a flank, with the carrier in our half: 0.44 -> 0.39 a turn, turns with two or more of them 12% -> 9% (FUMBBL
+  coaches 0.46, 11%). Against v4.32: 288 matches, touchdowns 242-230, won 105, drew 91, lost 92; against BotBowl's bot (Humans, 96)
+  won 56, drew 25, lost 15, touchdowns 98-37.
+
 ## v4.32 (6 Nov 2026)
 - **Improved (AI):** the carrier's way forward (`lane1`). While our carrier still has to move, a team-mate's move, Blitz, foul,
   hand-off or pass that would shorten how far he can get (the fewest squares to go over the squares he can reach at least 70%
