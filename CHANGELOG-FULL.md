@@ -2,6 +2,14 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.29 (6 Nov 2026)
+- **Changed (AI):** bashier blocking. The AI takes ordinary blocks with up to a 17% chance of a Turnover (was 12%; agile teams
+  12%, was 5%) and worth 1.5 or more (was 2.5). Against the AI before, over 288 matches on 12 teams: casualties caused 489-411
+  (that split by luck: about 1%), blocks 40.6 v 36.2 a match, Turnovers 1315-1229, results level (won 105, drew 87, lost 96,
+  touchdowns 209-213). Good for tournaments that score casualties. Found with the what-if tests (v4.28): judged in its own
+  positions, each block the change adds came out +0.9 points of win chance (+-0.9), over 167 positions. The limits are dials
+  (`AIP` `blkTurn`, `blkAgile`, `blkMin`) like the late block's and the general Blitz's (`bzTurn`, `bzMin`, unchanged).
+
 ## v4.28 (6 Nov 2026)
 - **Testing:** `tools/ai-whatif.js` judges one AI decision in its own positions. It saves real match positions where two AI
   settings would choose differently, then plays each choice out from the same position many times, to the start of the

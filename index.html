@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.28</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.29</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -25236,14 +25236,14 @@
                         state.players.forEach(d => {
                             if (d.team === me || !onPitch(d) || d.isDown || Math.max(Math.abs(m.x - d.x), Math.abs(m.y - d.y)) !== 1) return;
                             blitzCtx = true; const e = blockEval(p, d, m.x, m.y); blitzCtx = false;
-                            if (e.pTurn > 0.12) return;
+                            if (e.pTurn > AIX.p(me, 'bzTurn', 0.12)) return;
                             const pr = m.prob / 100 * (left >= 1 ? 1 : 5 / 6);
                             const s = pr * e.ev - (1 - pr) * 8 - e.pTurn * 6 + (d.st >= 4 ? 0.5 : 0);
                             if (!best || s > best.s) best = { p, d, s };
                         });
                     });
                 });
-                if (!best || best.s < 3) return null;
+                if (!best || best.s < AIX.p(me, 'bzMin', 3)) return null;   // (AIP bzTurn, bzMin: dials for tests)
                 return blitzOn(best.p, best.d.id);
             }
             function blitzOn(p, tid) {
@@ -25756,10 +25756,13 @@
                     const freesC = ourC && cheb(d, ourC) === 1 ? 2 : 0;   // knocking a marker off our carrier
                     // agile teams only take near-safe blocks - (line1) unless the blocker is marked anyway: then the block frees them,
                     // where otherwise they'd dodge away (strong elf and Amazon coaches block on their first turn about as much as anyone)
-                    const agileLim = AIX.on(me, 'line1') && tzFor(p.x, p.y, me) > 0 ? 0.12 : 0.05;
-                    const limit = isCarrier ? 0.34 : (carrier && carrier.id === p.id ? 0.03 : agileTeam(me) ? agileLim : 0.12) + (gain >= 3 || freesC ? 0.08 : 0);
+                    // (AIP blkTurn, blkAgile, blkMin: the risk and worth limits, as dials for tests. v4.29 raised them from 0.12, 0.05
+                    // and 2.5: against the AI before, over 288 matches, casualties caused 489-411, blocks 40.6 v 36.2 a match, results
+                    // level - won 105, drew 87, lost 96, touchdowns 209-213)
+                    const agileLim = AIX.on(me, 'line1') && tzFor(p.x, p.y, me) > 0 ? 0.12 : AIX.p(me, 'blkAgile', 0.12);
+                    const limit = isCarrier ? 0.34 : (carrier && carrier.id === p.id ? 0.03 : agileTeam(me) ? agileLim : AIX.p(me, 'blkTurn', 0.17)) + (gain >= 3 || freesC ? 0.08 : 0);
                     const v = e.ev + laneValue(e, gain + freesC);
-                    return { ok: e.pTurn <= limit && v >= (isCarrier ? 1 : 2.5), v, gain };
+                    return { ok: e.pTurn <= limit && v >= (isCarrier ? 1 : AIX.p(me, 'blkMin', 1.5)), v, gain };
                 };
                 // block candidates
                 const blocks = [];

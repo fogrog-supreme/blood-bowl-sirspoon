@@ -924,3 +924,13 @@ the turn instead of playing on came out -4.2 +- 10.3 points played to full time,
   positions x 8 play-outs: -0.7 +- 1.6 points, no difference (the 192 matches: level too).
 - About 6% of play-outs don't play the choice collected (the AI isn't exactly the same after a reload, e.g. it forgets which
   players it set aside earlier in the turn); `play` reports how many.
+
+### First use: the AI's dials (v4.29)
+Each dial changed alone, B against the AI as it was (A), at the positions where the change alters the choice (24-96 matches
+collected, 6 play-outs each way): the late block's risk 0.2 -> 0.3 almost never changed a choice; its knock-down chance 0.4 -> 0.3:
++0.1 +- 0.9 points (83 positions); block risk 0.12 -> 0.17: +0.1 +- 1.2 (60); block worth 2.5 -> 1.5: +0.9 +- 1.4 (81); the
+general Blitz's worth 3 -> 2: -0.5 +- 0.9 (87). All three block dials together (risk 0.17, agile teams' 0.12, worth 1.5):
++0.9 +- 0.9 (167 positions, about 4-5 changed choices a match). In 288 matches against the AI as it was: results level (won 105,
+drew 87, lost 96, touchdowns 209-213), casualties caused 489-411, blocks 40.6 v 36.2 a match, Turnovers 1315-1229. Released as
+v4.29 for the casualties (some tournaments score them). The per-decision gain is small enough that 288 matches can't see it in
+the results; the casualties they can.

@@ -2,6 +2,9 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.29 (6 Nov 2026)
+- The computer blocks more and hurts more: about 4 more blocks and a quarter more casualties a match, with the same results.
+
 ## v4.28 (6 Nov 2026)
 - Behind the scenes: a new way to test the computer's decisions one at a time. No change to play.
 
