@@ -2,6 +2,10 @@
 
 The highlights, newest first. Every change in full: [the full patch log](https://github.com/sirspoon/BludBowl/blob/main/CHANGELOG-FULL.md).
 
+## v4.35 (10 Nov 2026)
+- Tournament teams can be built to the UKTC XI rules (January 2027): a set budget per race, skill gold for skills, stacked primary
+  skills from Tier 3 and a stat increase for Tier 5 teams. Pick "Tournament rules" in the Team Builder.
+
 ## v4.34 (6 Nov 2026)
 - On defence the computer keeps two players back while your ball carrier is still in your own half, so a break past its front line
   doesn't find the whole team chasing back.

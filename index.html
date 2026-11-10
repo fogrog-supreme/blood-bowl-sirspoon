@@ -1023,7 +1023,7 @@
         <h1 class="doom-title mb-2 mt-[-8vh]">BludBowl</h1>
         <button type="button" class="fsc-btn fsc-corner" data-fs title="Full screen" aria-label="Full screen">⛶</button>
         <p id="by-sirspoon" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none" style="-webkit-tap-highlight-color:transparent;position:relative;z-index:5">By SirSpoon<span id="secret-tag" style="display:none;color:rgba(251,191,36,.8)" title="Secret options are on"> ✦</span></p>
-        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.34</button>
+        <button type="button" id="app-version" title="What's new" aria-haspopup="dialog">v4.35</button>
         <button id="btn-play" class="fantasy-font text-2xl md:text-3xl text-slate-200 hover:text-white bg-red-900/60 hover:bg-red-800 border-2 border-red-700 hover:border-red-500 px-8 md:px-10 py-2 rounded-xl shadow-[0_0_25px_rgba(220,38,38,0.5)] transition-all uppercase tracking-widest animate-pulse">
             Play Game
         </button>
@@ -1233,7 +1233,7 @@
             <label class="tb-field"><span>Name</span><input id="tb-name" class="tb-in" maxlength="30"></label>
             <label class="tb-field"><span>Race</span><select id="tb-race" class="tb-in"></select></label>
             <label class="tb-field"><span>Format</span><select id="tb-format" class="tb-in"><option value="">League team (1,000k, plays a career)</option><option value="matched">Tournament team (Matched Play: a set budget and skill points)</option><option value="sevens">Sevens team (600k, 7 a side, plays a career)</option><option value="sevens-mp">Sevens tournament team (Matched Play)</option></select></label>
-            <div id="tb-mpwrap" class="tb-field"><label for="tb-budget">Tournament budget (the most this team can spend)</label><select id="tb-budget" class="tb-in"></select><div id="tb-mpnote" class="tb-dim"></div></div>
+            <div id="tb-mpwrap" class="tb-field"><div id="tb-ruleswrap" class="tb-field"><label for="tb-rules">Tournament rules</label><select id="tb-rules" class="tb-in"><option value="">Blood Bowl rulebook (tiers and skill points)</option><option value="uktc">UKTC XI, January 2027 (skill gold, stacks, stat increases)</option></select></div><label for="tb-budget">Tournament budget (the most this team can spend)</label><select id="tb-budget" class="tb-in"></select><div id="tb-mpnote" class="tb-dim"></div></div>
             <div class="tb-cols">
               <div class="tb-field"><span>Main colour</span><button id="tb-col1" type="button" class="tb-swatch" data-colour="primary" aria-label="Main colour"></button></div>
               <div class="tb-field"><span>Lettering</span><button id="tb-col2" type="button" class="tb-swatch" data-colour="secondary" aria-label="Lettering colour"></button></div>
@@ -3084,7 +3084,7 @@
                 if (!$('post-game').classList.contains('hidden')) render();
             }
             const refresh = () => { if (!$('post-game').classList.contains('hidden')) render(); };
-            return { addReport, refresh, reset: () => { reports = []; tab = 0; adv = null; finished = false; pend = {}; }, settleEM, norm, normTeam, eff, value, tv, ctv, level, describe, matchSquad, journeymenNeeded, staffValue, canAdvance, SPP, SPP_NAME, open, simApply, pickPrimary, primaryList, advText, injTags, JOURNEY, skillChoices, AI_PICKS, aiPicks, autoAdvance,
+            return { addReport, refresh, reset: () => { reports = []; tab = 0; adv = null; finished = false; pend = {}; }, settleEM, norm, normTeam, eff, value, tv, ctv, level, describe, matchSquad, journeymenNeeded, staffValue, canAdvance, SPP, SPP_NAME, open, simApply, pickPrimary, primaryList, advText, injTags, JOURNEY, skillChoices, AI_PICKS, aiPicks, autoAdvance, canImprove,
                 started: t => (t.played || 0) > 0, statLine };
         })();
 
@@ -3253,6 +3253,29 @@
             starSP: sk => STARS[sk] && STARS[sk].mega ? 4 : 2,
             maxStars: race => MP.tier(race) === 1 ? 1 : 2
         };
+        // ---------- UKTC XI (Manchester, 9-10 January 2027): the UK Team Challenge's own tournament rules ----------
+        // From its Rules Pack (uktcbloodbowl.com/uktc-rules), Tables 1.1 and 1.2. Each race has a set team budget (Team Gold) and a
+        // budget for skills (Skill Gold, by tier), in gold, not skill points. Tier 3 and up may stack primary skills: a second primary on
+        // a player whose first extra is a primary, at its price plus the stack's (secondaries and stat increases don't stack). Tier 5 may
+        // give one player a stat increase in lieu of a skill. No Star Players. The pack sets no Elite Skill or secondary limits.
+        const UKTC = {
+            RACE: { amazon: [1090, 1], human: [1090, 1], orc: [1090, 1], oldworld: [1090, 1], snotling: [1090, 5], gnome: [1090, 5],
+                darkelf: [1110, 1], highelf: [1110, 1], underworld: [1110, 1], nurgle: [1110, 2], undead: [1110, 2], halfling: [1110, 5],
+                woodelf: [1130, 1], lizardmen: [1130, 2], skaven: [1130, 2], bretonnian: [1130, 4], chaoschosen: [1130, 4], goblin: [1130, 5],
+                necromantic: [1150, 2], norse: [1150, 2], renegades: [1150, 4], tombkings: [1150, 4],
+                elvenunion: [1170, 3], imperial: [1170, 3], vampire: [1170, 3], blackorc: [1170, 4], chaosdwarf: [1170, 4],
+                dwarf: [1200, 3], khorne: [1200, 4], ogre: [1200, 5] },   // [team gold, tier] (the pack's Slann, 1150 and Tier 3, aren't in the game)
+            GOLD: { 1: 120, 2: 140, 3: 160, 4: 180, 5: 200 },   // skill gold by tier
+            STACKS: { 1: 0, 2: 0, 3: 1, 4: 2, 5: 2 },           // stacked primaries a team may have
+            STATS: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 1 },            // stat increases a team may have
+            COST: { P: 20, S: 30, stack: 10, av: 10, ma: 20, pa: 20, ag: 40, st: 50 },
+            STAT_ORDER: ['av', 'ma', 'pa', 'ag', 'st'],
+            // the inducements it permits, and how many (its Mortuary Assistant, Plague Doctor and Bretonnian Pastry aren't in the game)
+            IND: { ref: 1, kegs: 2, bribes: 3, chef: 1, mascot: 1, rookies: 1, apo: 2 },
+            row: race => UKTC.RACE[race] || [1150, 3],
+            budget: race => UKTC.row(race)[0],
+            tier: race => UKTC.row(race)[1]
+        };
         const TB = (function () {
             const KEY = 'bb-custom-teams', VER = 1, BUDGET = 1000, MAXP = 16, MINP = 11;
             const STAFF = {
@@ -3363,16 +3386,21 @@
                 if (!/^#[0-9a-f]{6}$/i.test(c.secondary)) c.secondary = '#fde68a';
                 if (c.sprites && !(SPRITE_SETS[c.race] || []).some(x => x.id === c.sprites)) delete c.sprites;
                 if (c.league && !(RACE_LEAGUES[c.race] || []).includes(c.league)) delete c.league;
-                if (c.format !== 'matched' && c.format !== 'sevens-mp') { delete c.budget; delete c.stars; delete c.mind; c.players.forEach(p => { delete p.mp; }); if (c.format === 'sevens') c.bribes = 0; }
-                else {   // a Matched Play team: its budget, Star Players, inducements and one extra skill per player
-                    const sv = c.format === 'sevens-mp', bl = sv ? SEV.MP_BUDGETS : MP.BUDGETS;
-                    c.budget = bl.includes(+c.budget) ? +c.budget : sv ? 600 : 1150;
-                    c.stars = sv ? [] : (Array.isArray(c.stars) ? c.stars : []).filter((sk, i, a) => STARS[sk] && a.indexOf(sk) === i).slice(0, 2);
+                if (c.format !== 'matched' && c.format !== 'sevens-mp') { delete c.budget; delete c.stars; delete c.mind; delete c.rules; c.players.forEach(p => { delete p.mp; delete p.mp2; }); if (c.format === 'sevens') c.bribes = 0; }
+                else {   // a Matched Play team: its budget, Star Players, inducements and one extra skill per player (UKTC: a stack or a stat increase too)
+                    const sv = c.format === 'sevens-mp', bl = sv ? SEV.MP_BUDGETS : MP.BUDGETS, uk = !sv && c.rules === 'uktc';
+                    if (!uk) delete c.rules;
+                    c.budget = uk ? UKTC.budget(c.race) : bl.includes(+c.budget) ? +c.budget : sv ? 600 : 1150;
+                    c.stars = sv || uk ? [] : (Array.isArray(c.stars) ? c.stars : []).filter((sk, i, a) => STARS[sk] && a.indexOf(sk) === i).slice(0, 2);
                     const m = c.mind && typeof c.mind === 'object' ? c.mind : {}; c.mind = {};
-                    Object.keys(m).forEach(key => { const n = Math.max(0, Math.min(8, parseInt(m[key], 10) || 0)); if (n) c.mind[key] = n; });
+                    Object.keys(m).forEach(key => { const n = Math.max(0, Math.min(uk ? UKTC.IND[key] || 0 : 8, parseInt(m[key], 10) || 0)); if (n) c.mind[key] = n; });
                     const f0 = parseInt(t.fans, 10); c.fans = Math.max(0, Math.min(sv ? 5 : 3, isNaN(f0) ? 0 : f0));
                     c.bribes = 0;
-                    c.players.forEach(p => { if (!(p.mp && typeof p.mp.skill === 'string' && (p.mp.kind === 'P' || p.mp.kind === 'S'))) delete p.mp; });
+                    c.players.forEach(p => {
+                        const skill = x => x && typeof x.skill === 'string' && (x.kind === 'P' || x.kind === 'S');
+                        if (!(skill(p.mp) || (uk && p.mp && p.mp.kind === 'C' && UKTC.STAT_ORDER.includes(p.mp.stat)))) delete p.mp;
+                        if (!(uk && p.mp && p.mp.kind === 'P' && skill(p.mp2) && p.mp2.kind === 'P' && p.mp2.skill !== p.mp.skill)) delete p.mp2;
+                    });
                 }
                 // the Sevens Veteran: exactly one, and a Lineman
                 if (isSevT(c)) {
@@ -3411,26 +3439,53 @@
             const isMP = t => !!t && (t.format === 'matched' || t.format === 'sevens-mp');
             const isSev = isSevT;
             // Matched Play allowances: standard (BB2025 tiers) or Sevens (skill points = tier; one secondary; two Elite skills in all; no Star Players)
-            const tierOf = t => isSev(t) ? (SEV.TIER[t.race] || 2) : MP.tier(t.race);
-            const spOf = t => isSev(t) ? tierOf(t) : MP.SP[tierOf(t)];
+            const isUK = t => isMP(t) && !isSev(t) && t.rules === 'uktc';   // a tournament team on the UKTC rules
+            const tierOf = t => isSev(t) ? (SEV.TIER[t.race] || 2) : isUK(t) ? UKTC.tier(t.race) : MP.tier(t.race);
+            const spOf = t => isSev(t) ? tierOf(t) : isUK(t) ? UKTC.GOLD[tierOf(t)] : MP.SP[tierOf(t)];
             const secMax = t => isSev(t) ? 1 : tierOf(t);
             const starN = t => isMP(t) ? (t.stars || []).reduce((a, sk) => a + starMembers(sk).length, 0) : 0;   // roster places the Stars take
-            const spUsed = t => t.players.reduce((a, p) => a + (p.mp ? (p.mp.kind === 'S' ? 2 : 1) : 0), 0) + (t.stars || []).reduce((a, sk) => a + MP.starSP(sk), 0);
+            // a player's extras: one skill (UKTC: a stacked primary as well, or a stat increase instead)
+            const mpSkills = p => [p.mp && p.mp.skill, p.mp2 && p.mp2.skill].filter(Boolean);
+            const mpStat = p => p.mp && p.mp.kind === 'C' ? p.mp.stat : null;
+            const mpAdvs = p => mpSkills(p).map((skill, i) => ({ skill, kind: i ? 'P' : p.mp.kind })).concat(mpStat(p) ? [{ stat: mpStat(p) }] : []);
+            const mpText = p => mpSkills(p).map(sk => '+' + sk).concat(mpStat(p) ? ['+1 ' + mpStat(p).toUpperCase()] : []).join(' ');
+            const mpView = (t, p) => isMP(t) && p.mp ? Object.assign({}, p, { advs: (p.advs || []).concat(mpAdvs(p)) }) : p;   // the player as he takes the field
+            // what a player's extras cost: skill points (primary 1, secondary 2), or at UKTC skill gold
+            const pickCost = (t, p) => !p.mp ? 0 : !isUK(t) ? (p.mp.kind === 'S' ? 2 : 1)
+                : (p.mp.kind === 'C' ? UKTC.COST[p.mp.stat] : UKTC.COST[p.mp.kind]) + (p.mp2 ? UKTC.COST.P + UKTC.COST.stack : 0);
+            const spUsed = t => t.players.reduce((a, p) => a + pickCost(t, p), 0) + (t.stars || []).reduce((a, sk) => a + MP.starSP(sk), 0);
+            const statOk = (t, p, s) => CAREER.canImprove(t.race, CAREER.norm(Object.assign({}, p, { advs: [] })), s);   // within the characteristic's limit
             function mpIndCost(t) { return typeof LEAGUE === 'undefined' ? 0 : LEAGUE.indList(isSev(t) ? 'sevens' : 'std').reduce((a, it) => a + (t.mind[it.key] || 0) * LEAGUE.indCost(it, t.race), 0); }
+            // the inducements a tournament team may take, and how many (UKTC permits fewer)
+            const mpIndOk = (t, it) => LEAGUE.offered(it, t.race) && (!isUK(t) || !!UKTC.IND[it.key]);
+            const mpIndMax = (t, it) => isUK(t) ? Math.min(LEAGUE.indMax(it, t.race), UKTC.IND[it.key] || 0) : LEAGUE.indMax(it, t.race);
             // what is wrong with a Matched Play draft (nothing: it can be saved)
             function mpProblems(t, c) {
-                const out = [], tier = tierOf(t), sp = spOf(t), n = t.players.length + starN(t), MAXP = maxP(t), MINP = minP(t);
+                const out = [], tier = tierOf(t), sp = spOf(t), n = t.players.length + starN(t), MAXP = maxP(t), MINP = minP(t), used = spUsed(t);
                 if (c.spent > t.budget) out.push(`${k(c.spent - t.budget)} over the ${k(t.budget)} budget`);
-                if (spUsed(t) > sp) out.push(`${spUsed(t) - sp} skill point${spUsed(t) - sp === 1 ? '' : 's'} over the ${sp} a Tier ${tier} team has`);
-                const sec = t.players.filter(p => p.mp && p.mp.kind === 'S').length;
-                if (sec > secMax(t)) out.push(isSev(t) ? `${sec} secondary skills (Sevens: one at most)` : `${sec} secondary skills (Tier ${tier}: up to ${tier})`);
-                if (isSev(t)) {
-                    const el = t.players.filter(p => p.mp && MP.ELITE.includes(p.mp.skill)).length;
-                    if (el > 2) out.push(`${el} Elite Skills (Sevens: two at most)`);
-                    out.push(...sevProblems(t));
-                } else MP.ELITE.forEach(sk => { const m = t.players.filter(p => p.mp && p.mp.skill === sk).length; if (m > 4) out.push(`${sk} given to ${m} players (an Elite Skill: 4 at most)`); });
-                if ((t.stars || []).length > MP.maxStars(t.race)) out.push(`Tier ${tier} teams may have only ${MP.maxStars(t.race)} Star Player`);
-                if ((t.stars || []).filter(sk => STARS[sk].mega).length > 1) out.push('Only one Mega-star');
+                if (used > sp) out.push(isUK(t) ? `${k(used - sp)} over the ${k(sp)} skill gold a UKTC Tier ${tier} team has` : `${used - sp} skill point${used - sp === 1 ? '' : 's'} over the ${sp} a Tier ${tier} team has`);
+                if (isUK(t)) {
+                    const stk = t.players.filter(p => p.mp2).length, sts = t.players.filter(mpStat).length;
+                    if (stk > UKTC.STACKS[tier]) out.push(`${stk} stacked skill${stk === 1 ? '' : 's'} (UKTC Tier ${tier}: ${UKTC.STACKS[tier] || 'none'})`);
+                    if (sts > UKTC.STATS[tier]) out.push(`${sts} stat increase${sts === 1 ? '' : 's'} (UKTC Tier ${tier}: ${UKTC.STATS[tier] || 'none'})`);
+                    t.players.filter(p => mpStat(p) && !statOk(t, p, mpStat(p))).forEach(p => out.push(`${p.name}: +1 ${mpStat(p).toUpperCase()} is past the characteristic's limit`));
+                    if ((t.stars || []).length) out.push('No Star Players at UKTC');
+                    Object.keys(t.mind || {}).forEach(key => {
+                        if (t.mind[key] <= (UKTC.IND[key] || 0)) return;
+                        const it = typeof LEAGUE === 'undefined' ? null : LEAGUE.IND.find(x => x.key === key);
+                        out.push(`${t.mind[key]} × ${it ? it.name : key}: UKTC permits ${UKTC.IND[key] || 'none'}`);
+                    });
+                } else {
+                    const sec = t.players.filter(p => p.mp && p.mp.kind === 'S').length;
+                    if (sec > secMax(t)) out.push(isSev(t) ? `${sec} secondary skills (Sevens: one at most)` : `${sec} secondary skills (Tier ${tier}: up to ${tier})`);
+                    if (isSev(t)) {
+                        const el = t.players.filter(p => p.mp && MP.ELITE.includes(p.mp.skill)).length;
+                        if (el > 2) out.push(`${el} Elite Skills (Sevens: two at most)`);
+                        out.push(...sevProblems(t));
+                    } else MP.ELITE.forEach(sk => { const m = t.players.filter(p => p.mp && p.mp.skill === sk).length; if (m > 4) out.push(`${sk} given to ${m} players (an Elite Skill: 4 at most)`); });
+                    if ((t.stars || []).length > MP.maxStars(t.race)) out.push(`Tier ${tier} teams may have only ${MP.maxStars(t.race)} Star Player`);
+                    if ((t.stars || []).filter(sk => STARS[sk].mega).length > 1) out.push('Only one Mega-star');
+                }
                 if (n > MAXP) out.push(`${n} players: the roster holds ${MAXP}`);
                 if (n < MINP) out.push(`${n} players: a team needs ${MINP}, counting Star Players`);
                 return out;
@@ -3474,9 +3529,14 @@
                 if (!t) return null;
                 const R = RACES[t.race], mp = isMP(t);
                 let SQ = CAREER.matchSquad(CAREER.normTeam(JSON.parse(JSON.stringify(t))));
-                if (mp) {   // Matched Play: each player's extra skill; no Journeymen (Star Players count towards the eleven)
+                if (mp) {   // Matched Play: each player's extra skill (UKTC: a stacked one, or a stat increase); no Journeymen (Star Players count towards the eleven)
                     SQ = SQ.filter(x => !x.ovr.journeyman);
-                    SQ.forEach(x => { const q = t.players.find(p => p.id === x.ovr.careerId); if (q && q.mp && !x.ovr.skills.includes(q.mp.skill)) { x.ovr.skills.push(q.mp.skill); x.ovr.mpSkill = q.mp.skill; } });
+                    SQ.forEach(x => {
+                        const q = t.players.find(p => p.id === x.ovr.careerId); if (!q || !q.mp) return;
+                        mpSkills(q).forEach((sk, i) => { if (!x.ovr.skills.includes(sk)) x.ovr.skills.push(sk); if (!i) x.ovr.mpSkill = sk; });
+                        const s = mpStat(q), o = x.ovr;   // the stat increase: AG and PA count down, the others up (within their limits)
+                        if (s) { if (s === 'ag' || s === 'pa') { if (o[s] != null) o[s] = Math.max(1, o[s] - 1); } else o[s] = Math.min({ ma: 9, st: 8, av: 11 }[s], o[s] + 1); o.mpStat = s; }
+                    });
                 }
                 const P = SQ.map(p => ({ ...p, t: { ...R.types[p.pos], ...p.ovr } })), sev = isSev(t), XI = minP(t);
                 // the first eleven (Sevens: seven) take the field: strongest three on the line, quickest at the back (same as the computer's setup)
@@ -3512,8 +3572,35 @@
                     <span class="tb-num">${value}</span>
                     <button type="button" class="tb-btn" data-inc="${key}" aria-label="More ${s.label}" ${value >= s.max ? 'disabled' : ''}>+</button></div></div>`;
             }
+            // UKTC: a skill (primary 20k, secondary 30k of skill gold) or, Tier 5, a stat increase in lieu of one; then, Tier 3 and up,
+            // a stacked primary on a player whose first extra is a primary (20k + 10k)
+            function ukSelect(t, p, i) {
+                const tier = tierOf(t), C = UKTC.COST, allow = spOf(t), base = spUsed(t) - pickCost(t, p);
+                const stack = p.mp2 ? C.P + C.stack : 0;   // stays while the first extra is a primary
+                const stacks = t.players.filter(q => q !== p && q.mp2).length, stats = t.players.filter(q => q !== p && mpStat(q)).length;
+                const opt = (val, label, on, why) => `<option value="${val}"${on ? ' selected' : ''}${why && !on ? ' disabled' : ''}>${label}${why && !on ? ' – ' + why : ''}</option>`;
+                const gold = n => n > allow ? 'not enough skill gold' : '';
+                const sk = (s, kind) => opt(`${kind}|${esc(s)}`, esc(s), !!p.mp && p.mp.skill === s && p.mp.kind === kind,
+                    gold(base + C[kind] + (kind === 'P' && !(p.mp2 && p.mp2.skill === s) ? stack : 0)));
+                const e = CAREER.eff(t.race, CAREER.norm(Object.assign({}, p, { advs: [] })));
+                const now = s => s === 'ag' || s === 'pa' ? `${e[s]}+ → ${e[s] - 1}+` : s === 'av' ? `${e[s]}+ → ${e[s] + 1}+` : `${e[s]} → ${e[s] + 1}`;
+                const stl = UKTC.STATS[tier] ? UKTC.STAT_ORDER.filter(s => statOk(t, p, s)).map(s => opt(`C|${s}`, `+1 ${s.toUpperCase()} (${now(s)}) · ${k(C[s])}`, mpStat(p) === s,
+                    gold(base + C[s]) || (stats >= UKTC.STATS[tier] ? `Tier ${tier}: ${UKTC.STATS[tier]} per team` : ''))).join('') : '';
+                const P = CAREER.skillChoices(t.race, p, 'P'), S = CAREER.skillChoices(t.race, p, 'S');
+                let html = `<select class="tb-in tb-mpsel" data-mpsk="${i}" aria-label="Extra skill${stl ? ' or stat increase' : ''} for ${esc(p.name)}"><option value="">No extra skill</option>
+                    <optgroup label="Primary · ${k(C.P)}">${P.map(x => sk(x.skill, 'P')).join('')}</optgroup><optgroup label="Secondary · ${k(C.S)}">${S.map(x => sk(x.skill, 'S')).join('')}</optgroup>`
+                    + (stl ? `<optgroup label="Stat increase · instead of a skill">${stl}</optgroup>` : '') + '</select>';
+                if (UKTC.STACKS[tier] && p.mp && p.mp.kind === 'P') {
+                    const P2 = CAREER.skillChoices(t.race, CAREER.norm(Object.assign({}, p, { advs: [{ skill: p.mp.skill }] })), 'P'), n = UKTC.STACKS[tier];
+                    html += `<select class="tb-in tb-mpsel" data-mpsk2="${i}" aria-label="Stacked primary skill for ${esc(p.name)}"><option value="">No stacked skill</option>
+                        <optgroup label="Stacked primary · ${k(C.P + C.stack)} (${k(C.P)} + ${k(C.stack)} for the stack)">${P2.map(x => opt(`P|${esc(x.skill)}`, esc(x.skill), !!p.mp2 && p.mp2.skill === x.skill,
+                            gold(base + C.P + C.P + C.stack) || (stacks >= n ? `Tier ${tier}: ${n} stack${n === 1 ? '' : 's'} per team` : ''))).join('')}</optgroup></select>`;
+                }
+                return html;
+            }
             // Matched Play: the extra skill a player may take (primary 1 skill point, secondary 2)
             function mpSelect(t, p, i) {
+                if (isUK(t)) return ukSelect(t, p, i);
                 const tier = tierOf(t), own = p.mp ? (p.mp.kind === 'S' ? 2 : 1) : 0, room = spOf(t) - (spUsed(t) - own), sv = isSev(t);
                 const secs = t.players.filter(q => q !== p && q.mp && q.mp.kind === 'S').length;
                 const elite = sk => t.players.filter(q => q !== p && q.mp && q.mp.skill === sk).length;
@@ -3539,9 +3626,16 @@
                 return '';
             }
             function mpRender(t, c) {
-                const tier = tierOf(t), used = spUsed(t), allow = spOf(t), left = t.budget - c.spent, sv = isSev(t), MAXP = maxP(t), MINP = minP(t);
-                $('tb-budget').innerHTML = (sv ? SEV.MP_BUDGETS : MP.BUDGETS).map(b => `<option value="${b}" ${b === t.budget ? 'selected' : ''}>${k(b)}${sv ? (b === 600 ? ' (usual)' : '') : [1100, 1150, 1200].includes(b) ? ' (common)' : ''}</option>`).join('');
-                $('tb-mpnote').innerHTML = sv ? `<b>Sevens Tier ${tier}</b> team: <span class="tb-sp">${used} / ${allow} skill points</span> · one secondary skill in the whole team · two Elite Skills at most · no Star Players.
+                const tier = tierOf(t), used = spUsed(t), allow = spOf(t), left = t.budget - c.spent, sv = isSev(t), MAXP = maxP(t), MINP = minP(t), uk = isUK(t);
+                $('tb-rules').value = uk ? 'uktc' : ''; $('tb-ruleswrap').style.display = sv ? 'none' : '';
+                $('tb-budget').disabled = uk;   // UKTC sets each race's budget
+                $('tb-budget').innerHTML = uk ? `<option value="${t.budget}" selected>${k(t.budget)} (UKTC Team Gold for ${esc(RACES[t.race].name)})</option>`
+                    : (sv ? SEV.MP_BUDGETS : MP.BUDGETS).map(b => `<option value="${b}" ${b === t.budget ? 'selected' : ''}>${k(b)}${sv ? (b === 600 ? ' (usual)' : '') : [1100, 1150, 1200].includes(b) ? ' (common)' : ''}</option>`).join('');
+                const stk = UKTC.STACKS[tier], sts = UKTC.STATS[tier], C = UKTC.COST;
+                $('tb-mpnote').innerHTML = uk ? `<b>UKTC Tier ${tier}</b> team: <span class="tb-sp">${k(used)} / ${k(allow)} skill gold</span> · ${stk ? `${stk} stacked skill${stk === 1 ? '' : 's'}` : 'no stacking'} · ${sts ? `${sts} stat increase` : 'no stat increases'} · no Star Players.
+                    Skills come out of the skill gold, not the team budget: primary ${k(C.P)}, secondary ${k(C.S)}. ${stk ? `A player with an extra primary may stack a second primary for ${k(C.P + C.stack)} (${k(C.P)} + ${k(C.stack)}); secondaries and stat increases don't stack. ` : 'Stacking is for Tier 3 and up. '}
+                    ${sts ? `One player may take a stat increase instead of a skill: AV ${k(C.av)}, MA or PA ${k(C.ma)}, AG ${k(C.ag)}, ST ${k(C.st)}.` : 'Stat increases are for Tier 5 only.'} No SPP or lasting injuries: every game starts fresh.`
+                    : sv ? `<b>Sevens Tier ${tier}</b> team: <span class="tb-sp">${used} / ${allow} skill points</span> · one secondary skill in the whole team · two Elite Skills at most · no Star Players.
                     One extra skill per player (primary 1 point, secondary 2). At most 4 players without the Lineman keyword, and one Lineman is your Veteran.`
                     : `<b>Tier ${tier}</b> team: <span class="tb-sp">${used} / ${allow} skill points</span> · up to ${tier} secondary skill${tier === 1 ? '' : 's'} · ${MP.maxStars(t.race) === 1 ? '1 Star Player' : '2 Star Players'}.
                     One extra skill per player (primary 1 point, secondary 2). Skills don't add to team value. No SPP or lasting injuries: every game starts fresh.`;
@@ -3551,16 +3645,16 @@
                 $('tb-bar').parentNode.style.display = '';
                 $('tb-bar').style.width = Math.min(100, c.spent / t.budget * 100) + '%'; $('tb-bar').className = left < 0 ? 'tb-bad-bg' : '';
                 const probs = mpProblems(t, c);
-                $('tb-left').innerHTML = (left < 0 ? `${k(-left)} over the Matched Play budget` : left ? `${k(left)} left · gold not spent is lost` : 'Every last coin spent') + ` · skill points ${used}/${allow}`
+                $('tb-left').innerHTML = (left < 0 ? `${k(-left)} over the Matched Play budget` : left ? `${k(left)} left · gold not spent is lost` : 'Every last coin spent') + (uk ? ` · skill gold ${k(used)}/${k(allow)}` : ` · skill points ${used}/${allow}`)
                     + (probs.length ? `<div class="tb-mpwarn">${probs.map(x => `<div>${esc(x)}</div>`).join('')}</div>` : '');
                 const n = t.players.length + starN(t);
                 $('tb-count').textContent = `${n} / ${MAXP}`; $('tb-count').className = 'tb-big ' + (n < MINP || n > MAXP ? 'tb-bad' : 'tb-good');
                 $('tb-countnote').textContent = (starN(t) ? `${t.players.length} + ${starN(t)} Star Player${starN(t) === 1 ? '' : 's'} · ` : '') + (n < MINP ? `need at least ${MINP}` : 'ready to play');
                 $('tb-break').innerHTML = [['Players', c.players], ['Sideline staff & re-rolls', c.staff], ['Dedicated fans', c.fans], ['Star Players', c.stars], ['Inducements', c.induce]]
                     .map(([a, b]) => `<tr><td>${a}</td><td>${k(b)}</td></tr>`).join('') + `<tr class="tb-total"><td>Total spent</td><td>${k(c.spent)}</td></tr>`;
-                // Star Players (none in Sevens)
-                $('tb-mpstars').parentNode.style.display = sv ? 'none' : '';
-                const ks = sv ? [] : starsFor(t.race, t.league, t.favoured);
+                // Star Players (none in Sevens or at UKTC)
+                $('tb-mpstars').parentNode.style.display = sv || uk ? 'none' : '';
+                const ks = sv || uk ? [] : starsFor(t.race, t.league, t.favoured);
                 $('tb-mpstars').innerHTML = `<p class="tb-dim tb-hint">Their price in gold plus <span class="tb-sp">2 skill points</span> (a Mega-star <span class="tb-sp">4</span>). A pair counts as one Star but takes two places. Star Players get no extra skills.</p>` +
                     (ks.length ? ks.map(sk => {
                         const S = STARS[sk], on = (t.stars || []).includes(sk), why = mpStarWhy(t, sk, c);
@@ -3570,8 +3664,8 @@
                             <button type="button" class="tb-hire" data-mpstar="${sk}" ${why ? 'disabled' : ''}>${on ? 'Remove' : '+ Hire'}</button></div>`;
                     }).join('') : '<div class="tb-empty">No Star Players will play for this team.</div>');
                 // inducements
-                $('tb-mpind').innerHTML = LEAGUE.indList(sv ? 'sevens' : 'std').filter(it => LEAGUE.offered(it, t.race)).map(it => {
-                    const n2 = t.mind[it.key] || 0, cst = LEAGUE.indCost(it, t.race), mx = LEAGUE.indMax(it, t.race);
+                $('tb-mpind').innerHTML = LEAGUE.indList(sv ? 'sevens' : 'std').filter(it => mpIndOk(t, it)).map(it => {
+                    const n2 = t.mind[it.key] || 0, cst = LEAGUE.indCost(it, t.race), mx = mpIndMax(t, it);
                     return `<div class="tb-row"><div class="tb-row-main"><span class="tb-lbl">${esc(it.name)}</span><span class="tb-note">${k(cst)} each · up to ${mx} · ${esc(it.note)}</span></div>
                         <div class="tb-step"><button type="button" class="tb-btn" data-mpind="${it.key}|-1" aria-label="One fewer ${esc(it.name)}" ${n2 ? '' : 'disabled'}>−</button><span class="tb-num">${n2}</span>
                         <button type="button" class="tb-btn" data-mpind="${it.key}|1" aria-label="One more ${esc(it.name)}" ${n2 >= mx || cst > left ? 'disabled' : ''}>+</button></div></div>`;
@@ -3654,7 +3748,7 @@
                         : `<div class="tb-vetrow"><button type="button" class="tb-vet ${p.vet ? 'on' : ''}" data-vet="${i}" aria-pressed="${!!p.vet}">${p.vet ? '★ Veteran' : 'Make Veteran'}</button></div>`) : '';
                     const noFire = sev && car;   // Sevens leagues: no firing players
                     return `<div class="tb-pl"><span class="tb-ord"><button type="button" class="tb-mv" data-up="${i}" ${i ? '' : 'disabled'} aria-label="Move ${esc(p.name)} up">▲</button><span class="tb-no">${i + 1}</span><button type="button" class="tb-mv" data-dn="${i}" ${i < n - 1 ? '' : 'disabled'} aria-label="Move ${esc(p.name)} down">▼</button></span><span class="tb-tok" style="background:${t.primary};color:${t.secondary}">${sev && p.vet ? 'V' : ty.label}</span>
-                        <div class="tb-pnwrap"><input id="tb-pn-${i}" class="tb-in tb-pname" data-pn="${i}" value="${esc(p.name)}" maxlength="24" aria-label="Name of player ${i + 1}">${statSkillHtml(t.race, p, isMP(t) && p.mp ? p.mp.skill : null)}${vet}${extra}</div>
+                        <div class="tb-pnwrap"><input id="tb-pn-${i}" class="tb-in tb-pname" data-pn="${i}" value="${esc(p.name)}" maxlength="24" aria-label="Name of player ${i + 1}">${statSkillHtml(t.race, mpView(t, p))}${vet}${extra}</div>
                         <span class="tb-dim tb-pt">${esc(ty.type)}${i >= MINP ? ' · reserve' : ''}</span>
                         <span class="tb-dim">${k(CAREER.value(t.race, p))}</span>
                         ${noFire ? '<span></span>' : `<button type="button" class="tb-x" data-fire="${i}" aria-label="Release ${esc(p.name)}">✕</button>`}</div>`;
@@ -3840,7 +3934,7 @@
                 root.addEventListener('input', e => {
                     const el = e.target;
                     if (el.dataset.pn != null) { cur.players[+el.dataset.pn].name = el.value; dirty = true; $('tb-save').textContent = 'Save team'; }
-                    else if (el.dataset.mpsk != null) return;
+                    else if (el.dataset.mpsk != null || el.dataset.mpsk2 != null) return;
                     else if (el.id === 'tb-name') { cur.name = el.value; dirty = true; $('tb-save').textContent = 'Save team'; $('tb-endzone').textContent = (el.value || 'Team').toUpperCase() + ' END ZONE'; }
                 });
                 root.addEventListener('change', e => {
@@ -3856,16 +3950,37 @@
                             const same = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
                             if (was.some(k => k && same(k[0], cur.primary) && same(k[1], cur.secondary))) { const nk = raceKit(el.value); if (nk) { cur.primary = nk[0]; cur.secondary = nk[1]; } }
                             cur.race = el.value; cur.players = []; cur.bribes = Math.min(cur.bribes, maxOf('bribes', cur.race, cur));
-                            if (isMP(cur)) { cur.stars = []; cur.mind = {}; }
+                            if (isMP(cur)) { cur.stars = []; cur.mind = {}; if (isUK(cur)) cur.budget = UKTC.budget(cur.race); }
                         });
                         msg(had ? 'Roster cleared for the new race.' : '');
                     } else if (el.dataset.mpsk != null) {
-                        change(() => { const p = cur.players[+el.dataset.mpsk], v = el.value; if (!v) delete p.mp; else { const i2 = v.indexOf('|'); p.mp = { kind: v.slice(0, i2), skill: v.slice(i2 + 1) }; } });
+                        change(() => {
+                            const p = cur.players[+el.dataset.mpsk], v = el.value;
+                            if (!v) delete p.mp;
+                            else { const i2 = v.indexOf('|'), kind = v.slice(0, i2), x = v.slice(i2 + 1); p.mp = kind === 'C' ? { kind, stat: x } : { kind, skill: x }; }
+                            // a stacked skill stays only on top of a primary it still goes with
+                            if (p.mp2 && !(p.mp && p.mp.kind === 'P' && CAREER.skillChoices(cur.race, CAREER.norm(Object.assign({}, p, { advs: [{ skill: p.mp.skill }] })), 'P').some(q => q.skill === p.mp2.skill))) delete p.mp2;
+                        });
+                    } else if (el.dataset.mpsk2 != null) {
+                        change(() => { const p = cur.players[+el.dataset.mpsk2], v = el.value; if (!v) delete p.mp2; else p.mp2 = { kind: 'P', skill: v.slice(v.indexOf('|') + 1) }; });
+                    } else if (el.id === 'tb-rules') {
+                        const uk = el.value === 'uktc', hadStars = (cur.stars || []).length;
+                        change(() => {
+                            if (uk) {
+                                cur.rules = 'uktc'; cur.budget = UKTC.budget(cur.race); cur.stars = [];
+                                Object.keys(cur.mind || {}).forEach(key => { const n = Math.min(cur.mind[key], UKTC.IND[key] || 0); if (n) cur.mind[key] = n; else delete cur.mind[key]; });
+                            } else {
+                                delete cur.rules; if (!MP.BUDGETS.includes(cur.budget)) cur.budget = 1150;
+                                cur.players.forEach(p => { delete p.mp2; if (mpStat(p)) delete p.mp; });
+                            }
+                        });
+                        msg(uk ? `UKTC XI rules: ${RACES[cur.race].name} spend ${k(cur.budget)} on the team and ${k(spOf(cur))} of skill gold on skills (UKTC Tier ${tierOf(cur)}).${hadStars ? ' Star Players removed: UKTC has none.' : ''}`
+                            : 'Rulebook Matched Play: stacked skills and stat increases removed.');
                     } else if (el.id === 'tb-format') {
                         const to = el.value, from = cur.format || '';
                         change(() => {
                             const wasMP = from === 'matched' || from === 'sevens-mp', bribes = wasMP ? (cur.mind || {}).bribes || 0 : cur.bribes || 0;
-                            delete cur.budget; delete cur.stars; delete cur.mind; cur.players.forEach(p => { delete p.mp; delete p.vet; });
+                            delete cur.budget; delete cur.stars; delete cur.mind; delete cur.rules; cur.players.forEach(p => { delete p.mp; delete p.mp2; delete p.vet; });
                             if (to) cur.format = to; else delete cur.format;
                             if (to === 'matched' || to === 'sevens-mp') { cur.budget = to === 'matched' ? 1150 : 600; cur.stars = []; cur.mind = to === 'matched' && bribes ? { bribes } : {}; cur.bribes = 0; cur.fans = 0; }
                             else { cur.bribes = to === 'sevens' ? 0 : Math.min(maxOf('bribes', cur.race, cur), bribes); cur.fans = 1; }
@@ -3915,7 +4030,7 @@
             const putRaw = t => { load(); const c = clean(JSON.parse(JSON.stringify(t))), i = teams.findIndex(x => x.id === c.id); if (i >= 0) teams[i] = c; else teams.push(c); return persist(); };
             const watchers = new Set();
             const temp = (t, cb) => { temps.set(t.id, clean(JSON.parse(JSON.stringify(t)))); onTemp = cb; load(); };
-            return { temp, putRaw, watch: f => watchers.add(f), open, list: () => { load(); return teams.filter(t => !temps.has(t.id) && !t.ext); }, toRace, costs, get, put, randomName, remove, importData, download, isMP, isSev, mpProblems, sevProblems, spUsed, tierOf, spOf };
+            return { temp, putRaw, watch: f => watchers.add(f), open, list: () => { load(); return teams.filter(t => !temps.has(t.id) && !t.ext); }, toRace, costs, get, put, randomName, remove, importData, download, isMP, isSev, isUK, mpProblems, sevProblems, spUsed, tierOf, spOf, mpView, mpAdvs, mpText };
         })();
         // ---------- Trophies: gold, silver and bronze for the top three of a league season, cup or Swiss event ----------
         const TROPHY = {
@@ -4056,7 +4171,7 @@
                 return `<button type="button" class="th-team ${t.id === sel ? 'on' : ''}" data-sel="${t.id}">
                     <span class="th-tok" style="background:${t.primary};color:${t.secondary}">${esc(R.short || '')}</span>
                     <span class="th-tmain"><span class="th-tname">${esc(t.name)}${(t.fallen || []).length ? `<span class="th-mini" title="${t.fallen.length} fallen">✝${t.fallen.length > 1 ? t.fallen.length : ''}</span>` : ''}${(t.trophies || []).length ? `<span class="th-mini" aria-label="${t.trophies.length} trophies">${t.trophies.slice().sort((x, y) => x.place - y.place).slice(0, 5).map(tr => TROPHY.svg(tr.kind, 14)).join('')}${t.trophies.length > 5 ? '+' + (t.trophies.length - 5) : ''}</span>` : ''}</span>
-                    <span class="pg-dim">${esc(R.name)} · ${TB.isSev(t) ? 'Sevens · ' : ''}${TB.isMP(t) ? `Matched Play · ${k(t.budget)}` : car ? `${t.played} played · ${rc.w}-${rc.d}-${rc.l}` : 'not played yet'} · TV ${k(CAREER.tv(t))}</span></span></button>`;
+                    <span class="pg-dim">${esc(R.name)} · ${TB.isSev(t) ? 'Sevens · ' : ''}${TB.isMP(t) ? `${TB.isUK(t) ? 'UKTC XI' : 'Matched Play'} · ${k(t.budget)}` : car ? `${t.played} played · ${rc.w}-${rc.d}-${rc.l}` : 'not played yet'} · TV ${k(CAREER.tv(t))}</span></span></button>`;
             }
             function detail(t) {
                 const R = RACES[t.race], car = CAREER.started(t), rc = t.record;
@@ -4068,13 +4183,13 @@
                         <td><b>${esc(p.name)}</b><div class="pg-dim">${esc(ty.type)} · ${CAREER.level(p)}</div></td>
                         <td class="th-num">${p.spp}</td><td class="th-num">${s.gp}</td><td class="th-num">${s.td}</td><td class="th-num">${s.cas}</td><td class="th-num">${s.cp}</td><td class="th-num">${s.int}</td><td class="th-num">${s.mvp}</td>
                         <td class="th-num">${k(CAREER.value(t.race, p))}</td></tr>
-                        <tr class="th-sub ${p.mng ? 'th-out' : ''}"><td></td><td colspan="9">${statSkillHtml(t.race, p, TB.isMP(t) && p.mp ? p.mp.skill : null)}${inj ? `<div class="th-inj">${inj}</div>` : ''}</td></tr>`;
+                        <tr class="th-sub ${p.mng ? 'th-out' : ''}"><td></td><td colspan="9">${statSkillHtml(t.race, TB.mpView(t, p))}${inj ? `<div class="th-inj">${inj}</div>` : ''}</td></tr>`;
                 }).join('');
                 const hist = (t.history || []).slice(0, 10).map(h => `<div class="th-res"><span class="th-badge th-${h.res}">${h.res}</span> ${h.f}–${h.a} v ${esc(h.opp)} <span class="pg-dim">${esc(h.date)}</span></div>`).join('');
                 const fallen = (t.fallen || []).map(f => `<div class="th-res">✝ <b>${esc(f.name)}</b> <span class="pg-dim">${esc((R.types[f.pos] || {}).type || f.pos)} · ${f.gp} games · ${f.td} TD · ${f.cas} CAS · ${f.spp} SPP · ${esc(f.date)}</span></div>`).join('');
                 return `<section class="pg-card th-headcard" style="border-top-color:${t.primary}">
                         <div class="th-title"><span class="th-tok th-tok-big" style="background:${t.primary};color:${t.secondary}">${esc(R.short || '')}</span>
-                        <div><h3 class="th-h">${esc(t.name)}</h3><div class="pg-dim">${esc(R.name)} · ${TB.isSev(t) ? 'Sevens · ' : ''}${TB.isMP(t) ? `Matched Play team · ${k(t.budget)} budget · Tier ${TB.tierOf(t)}${(t.stars || []).length ? ' · ★ ' + esc(t.stars.map(sk => STARS[sk].name).join(', ')) : ''}` : car ? 'Career team' : 'Draft: not played a career match yet'}</div></div></div>
+                        <div><h3 class="th-h">${esc(t.name)}</h3><div class="pg-dim">${esc(R.name)} · ${TB.isSev(t) ? 'Sevens · ' : ''}${TB.isMP(t) ? `${TB.isUK(t) ? 'UKTC XI' : 'Matched Play'} team · ${k(t.budget)} budget · ${TB.isUK(t) ? 'UKTC ' : ''}Tier ${TB.tierOf(t)}${(t.stars || []).length ? ' · ★ ' + esc(t.stars.map(sk => STARS[sk].name).join(', ')) : ''}` : car ? 'Career team' : 'Draft: not played a career match yet'}</div></div></div>
                         <div class="th-stats">
                             <div><div class="th-cap">Record</div><div class="th-big">${rc.w}-${rc.d}-${rc.l}</div><div class="pg-dim">${t.played} played</div></div>
                             <div><div class="th-cap">Touchdowns</div><div class="th-big">${rc.tdf}:${rc.tda}</div><div class="pg-dim">for : against</div></div>
@@ -4139,8 +4254,8 @@
                         TB.put(c); sel = c.id; msg(`Made an exact copy: ${c.name}.`);
                     } else if (d.act === 'dupfresh') {
                         const c = { id: uid(), name: (t.name + ' (new)').slice(0, 30), race: t.race, primary: t.primary, secondary: t.secondary, rerolls: t.rerolls, apothecary: t.apothecary,
-                            coaches: t.coaches, cheerleaders: t.cheerleaders, fans: Math.min(3, t.fans), bribes: 0, players: t.players.map(p => Object.assign({ pos: p.pos, name: p.name }, TB.isMP(t) && p.mp ? { mp: p.mp } : {}, p.vet ? { vet: true } : {})) };
-                        if (TB.isMP(t)) Object.assign(c, { format: t.format, budget: t.budget, stars: (t.stars || []).slice(), mind: Object.assign({}, t.mind) });
+                            coaches: t.coaches, cheerleaders: t.cheerleaders, fans: Math.min(3, t.fans), bribes: 0, players: t.players.map(p => Object.assign({ pos: p.pos, name: p.name }, TB.isMP(t) && p.mp ? { mp: p.mp } : {}, TB.isMP(t) && p.mp2 ? { mp2: p.mp2 } : {}, p.vet ? { vet: true } : {})) };
+                        if (TB.isMP(t)) Object.assign(c, { format: t.format, budget: t.budget, stars: (t.stars || []).slice(), mind: Object.assign({}, t.mind) }, t.rules ? { rules: t.rules } : {});
                         else if (TB.isSev(t)) c.format = 'sevens';
                         TB.put(c); sel = c.id; msg(TB.isMP(t) ? `Made a copy of the Matched Play team: ${c.name}.` : `Made a fresh copy with no career: ${c.name}. It starts on the usual ${TB.isSev(t) ? '600k Sevens' : '1,000k'} budget.`);
                     } else if (d.act === 'reset') {
@@ -6104,7 +6219,7 @@
                 if (!th || !ta) { f.r = { s: th ? [2, 0] : [0, 2], sim: true, forfeit: true }; advance(cp); return; }
                 const tm = [th, ta].map(t => {
                     const c = JSON.parse(JSON.stringify(t)), d = c.mind || {};
-                    c.players.forEach(p => { p.advs = p.mp ? [{ skill: p.mp.skill, kind: p.mp.kind }] : []; });
+                    c.players.forEach(p => { p.advs = TB.isMP(t) && p.mp ? TB.mpAdvs(p) : []; });
                     c.rerolls = (c.rerolls || 0) + (d.ett || 0) + (d.mascot ? 1 : 0) + (d.chef ? 1 : 0) + (d.wizard ? 1 : 0);
                     if (d.apo && !noApo(c.race)) c.apothecary = true;
                     c.simStars = (c.stars || []).slice();
@@ -6199,8 +6314,8 @@
             }
             function teamLine(t) {
                 const R = RACES[t.race], st = (t.stars || []).map(sk => STARS[sk].name);
-                const sk = t.players.filter(p => p.mp).map(p => p.mp.skill), c = TB.costs(t);
-                return `${esc(R.name)} · Tier ${MP.tier(t.race)} · TV ${k(c.tv)} · ${t.rerolls} re-roll${t.rerolls === 1 ? '' : 's'}${st.length ? ' · ★ ' + esc(st.join(', ')) : ''}${sk.length ? ' · skills: ' + esc(sk.join(', ')) : ''}`;
+                const sk = t.players.flatMap(p => p.mp ? TB.mpAdvs(p).map(a => a.skill || '+1 ' + a.stat.toUpperCase()) : []), c = TB.costs(t);
+                return `${esc(R.name)} · ${TB.isUK(t) ? 'UKTC ' : ''}Tier ${TB.tierOf(t)} · TV ${k(c.tv)} · ${t.rerolls} re-roll${t.rerolls === 1 ? '' : 's'}${st.length ? ' · ★ ' + esc(st.join(', ')) : ''}${sk.length ? ' · skills: ' + esc(sk.join(', ')) : ''}`;
             }
             // the top three, with their medals
             function podium(cp) {
@@ -6238,7 +6353,7 @@
                     <section class="pg-card"><h3>Teams</h3>${cp.teams.map(id => { const t = teamOf(id); if (!t) return '<div class="pg-dim">(deleted team)</div>';
                         return `<div class="lg-team"><div class="lg-team-row">${tok(id)}<div class="lg-team-main"><div class="lg-tn">${esc(t.name)} ${coachTag(cp, id)}</div><div class="pg-dim">${teamLine(t)}</div></div>
                             <div class="lg-team-acts"><button type="button" class="pg-btn" data-cros="${id}">${show === id ? 'Hide roster' : 'Roster'}</button></div></div>
-                            ${show === id ? `<div class="pg-dim" style="margin:4px 0 0 34px">${t.players.map(p => `${esc(p.name)} <span class="pg-amber">${esc((RACES[t.race].types[p.pos] || {}).type || p.pos)}</span>${p.mp ? ' +' + esc(p.mp.skill) : ''}`).join(' · ')}${Object.keys(t.mind || {}).length ? `<div>Inducements: ${esc(LEAGUE.IND.filter(it => t.mind[it.key]).map(it => it.name + (t.mind[it.key] > 1 ? ' ×' + t.mind[it.key] : '')).join(', '))}</div>` : ''}</div>` : ''}</div>`; }).join('')}</section>`;
+                            ${show === id ? `<div class="pg-dim" style="margin:4px 0 0 34px">${t.players.map(p => `${esc(p.name)} <span class="pg-amber">${esc((RACES[t.race].types[p.pos] || {}).type || p.pos)}</span>${p.mp ? ' ' + esc(TB.mpText(p)) : ''}`).join(' · ')}${Object.keys(t.mind || {}).length ? `<div>Inducements: ${esc(LEAGUE.IND.filter(it => t.mind[it.key]).map(it => it.name + (t.mind[it.key] > 1 ? ' ×' + t.mind[it.key] : '')).join(', '))}</div>` : ''}</div>` : ''}</div>`; }).join('')}</section>`;
             }
             function listHtml() {
                 const cards = cups.filter(cp => !cp.online).map(cp => {

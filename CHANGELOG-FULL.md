@@ -2,6 +2,18 @@
 
 Every change to BludBowl in full, newest first. The game's "What's new" (tap the version number on the title screen) shows a shorter summary: CHANGELOG.md.
 
+## v4.35 (10 Nov 2026)
+- **New:** tournament teams can be built to the UKTC XI rules (Manchester, 9-10 January 2027) instead of the rulebook's Matched
+  Play: "Tournament rules" in the Team Builder. From the UKTC Rules Pack, Tables 1.1 and 1.2: each race's team budget (1,090k to
+  1,200k) and skill gold by tier (120k to 200k), spent on skills instead of skill points; primary skills 20k, secondary 30k; from
+  Tier 3 a player whose extra is a primary may stack a second primary (20k + 10k; Tier 3 one stack, Tiers 4 and 5 two); Tier 5 may
+  give one player a stat increase instead of a skill (AV 10k, MA or PA 20k, AG 40k, ST 50k, within the usual characteristic
+  limits); no Star Players; only the inducements it permits (Biased Referee, Blitzer's Best Kegs up to 2, Bribes up to 3, Halfling
+  Master Chef, Team Mascot, Riotous Rookies, Wandering Apothecaries up to 2). Stat increases and stacked skills reach the match,
+  the quick simulator, the team sheet and cup listings. Two readings of the pack: the stack's 10k is on top of the primary's 20k,
+  and "2-Stacks" means two players with a second skill each. The pack sets no Elite Skill or secondary limits, so none apply. Its
+  Slann, Mortuary Assistant, Plague Doctor and Bretonnian Pastry aren't in the game.
+
 ## v4.34 (6 Nov 2026)
 - **Improved (AI):** two safeties (`dep1`): with the other side's carrier still in his own half, two defenders go just beyond his
   run this turn (his move plus three squares towards our end zone), three rows either side of him, straight after the screen.
